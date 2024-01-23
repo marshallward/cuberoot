@@ -48,13 +48,21 @@ end do
 call system_clock(count=c2)
 print *, "Newton No_div:", (c2 - c1) / clock_rate / niter
 
-r = cuberoot_halley(x)
+r = cuberoot_halley_div(x)
 call system_clock(count=c1)
 do i = 1, niter
-r = cuberoot_halley(x)
+r = cuberoot_halley_div(x)
 end do
 call system_clock(count=c2)
 print *, "Halley:", (c2 - c1) / clock_rate / niter
+
+r = cuberoot_halley_nodiv(x)
+call system_clock(count=c1)
+do i = 1, niter
+r = cuberoot_halley_nodiv(x)
+end do
+call system_clock(count=c2)
+print *, "Halley no_div:", (c2 - c1) / clock_rate / niter
 
 contains
 
@@ -79,11 +87,15 @@ elemental function cuberoot_newton_quad(x) result(root)
   real(kind=real128) :: r
   integer :: i
 
-  root = 1._real128
-  do i=1,6
-    r = root
-    root = ((2._real128)*r**3 + x) / ((3._real128)*r**2)
-  enddo
+  if (x == 0.) then
+    root = 0.
+  else
+    root = 1._real128
+    do i=1,6
+      r = root
+      root = ((2._real128)*r**3 + x) / ((3._real128)*r**2)
+    enddo
+  endif
 end function cuberoot_newton_quad
 
 !> Returns the cube root of a real argument at roundoff accuracy, in a form that works properly with
@@ -112,9 +124,10 @@ elemental function cuberoot_nodiv(x) result(root)
     ! Return 0 for an input of 0, or NaN for a NaN input.
     root = x
   else
-    ex_3 = ceiling(exponent(x) / 3.)
-    ! Here asx is in the range of 0.125 <= asx < 1.0
-    asx = scale(abs(x), -3*ex_3)
+    !ex_3 = ceiling(exponent(x) / 3.)
+    !! Here asx is in the range of 0.125 <= asx < 1.0
+    !asx = scale(abs(x), -3*ex_3)
+    asx = x
 
     ! This first estimate is one iteration of Newton's method with a starting guess of 1.  It is
     ! always an over-estimate of the true solution, but it is a good approximation for asx near 1.
@@ -123,7 +136,9 @@ elemental function cuberoot_nodiv(x) result(root)
     ! Iteratively determine Root = asx**1/3 using Newton's method, noting that in this case Newton's
     ! method converges monotonically from above and needs no bounding.  For the range of asx from
     ! 0.125 to 1.0 with the first guess used above, 6 iterations suffice to converge to roundoff.
-    do itt=1,9
+
+    !do itt=1,9
+    do itt=1,6
       ! Newton's method iterates estimates as Root = Root - (Root**3 - asx) / (3.0 * Root**2), or
       ! equivalently as Root = (2.0*Root**2 + asx) / (3.0 * Root**2).
       ! Keeping the estimates in a fractional form Root = num / den allows this calculation with
@@ -134,28 +149,28 @@ elemental function cuberoot_nodiv(x) result(root)
       num = 2.0 * num_prev**3 + asx * den_prev**3
       den = 3.0 * (den_prev * num_prev**2)
 
-      if ((num * den_prev == num_prev * den) .or. (itt == 9)) then
-        !   If successive estimates of root are identical, this is a converged solution.
-        root_asx = num / den
-        exit
-      elseif (num * den_prev > num_prev * den) then
-        !   If the estimates are increasing, this also indicates convergence, but for a more subtle
-        ! reason.  Because Newton's method converges monotonically from above (at least for infinite
-        ! precision math), the only reason why this estimate could increase is if the iterations
-        ! have converged to a roundoff-level limit cycle around an irrational or otherwise
-        ! unrepresentable solution, with values only changing in the last bit or two.  If so, we
-        ! should stop iterating and accept the one of the current or previous solutions, both of
-        ! which will be within numerical roundoff of the true solution.
-        root_asx = num / den
-        ! Pick the more accurate of the last two iterations.
-        ! Given that both of the two previous iterations are within roundoff of the true
-        ! solution, this next step might be overkill.
-        if ( abs(den_prev**3*root_asx**3 - den_prev**3*asx) > abs(num_prev**3 - den_prev**3*asx) ) then
-          ! The previous iteration was slightly more accurate, so use that for root_asx.
-          root_asx = num_prev / den_prev
-        endif
-        exit
-      endif
+      !if ((num * den_prev == num_prev * den) .or. (itt == 9)) then
+      !  !   If successive estimates of root are identical, this is a converged solution.
+      !  root_asx = num / den
+      !  exit
+      !elseif (num * den_prev > num_prev * den) then
+      !  !   If the estimates are increasing, this also indicates convergence, but for a more subtle
+      !  ! reason.  Because Newton's method converges monotonically from above (at least for infinite
+      !  ! precision math), the only reason why this estimate could increase is if the iterations
+      !  ! have converged to a roundoff-level limit cycle around an irrational or otherwise
+      !  ! unrepresentable solution, with values only changing in the last bit or two.  If so, we
+      !  ! should stop iterating and accept the one of the current or previous solutions, both of
+      !  ! which will be within numerical roundoff of the true solution.
+      !  root_asx = num / den
+      !  ! Pick the more accurate of the last two iterations.
+      !  ! Given that both of the two previous iterations are within roundoff of the true
+      !  ! solution, this next step might be overkill.
+      !  if ( abs(den_prev**3*root_asx**3 - den_prev**3*asx) > abs(num_prev**3 - den_prev**3*asx) ) then
+      !    ! The previous iteration was slightly more accurate, so use that for root_asx.
+      !    root_asx = num_prev / den_prev
+      !  endif
+      !  exit
+      !endif
 
       ! Because successive estimates of the numerator and denominator tend to be the cube of their
       ! predecessors, the numerator and denominator need to be rescaled by division when they get
@@ -167,14 +182,17 @@ elemental function cuberoot_nodiv(x) result(root)
 
     enddo
 
-    root = sign(scale(root_asx, ex_3), x)
+    !root = sign(scale(root_asx, ex_3), x)
+    !root = root_asx
+
+    root = num / den
   endif
 
 end function cuberoot_nodiv
 
 !> Returns the cube root of a real argument at roundoff accuracy, in a form that works properly with
 !! rescaling of the argument by integer powers of 8.  If the argument is a NaN, a NaN is returned.
-elemental function cuberoot_halley(x) result(root)
+elemental function cuberoot_halley_nodiv(x) result(root)
   real, intent(in) :: x !< The argument of cuberoot in arbitrary units cubed [A3]
   real :: root !< The real cube root of x in arbitrary units [A]
 
@@ -195,13 +213,16 @@ elemental function cuberoot_halley(x) result(root)
   integer :: ex_3 ! One third of the exponent part of x, used to rescale x to get a.
   integer :: itt
 
+  real :: r
+
   if ((x >= 0.0) .eqv. (x <= 0.0)) then
     ! Return 0 for an input of 0, or NaN for a NaN input.
     root = x
   else
-    ex_3 = ceiling(exponent(x) / 3.)
-    ! Here asx is in the range of 0.125 <= asx < 1.0
-    asx = scale(abs(x), -3*ex_3)
+    !!ex_3 = ceiling(exponent(x) / 3.)
+    !!! Here asx is in the range of 0.125 <= asx < 1.0
+    !!asx = scale(abs(x), -3*ex_3)
+    asx = x
 
     ! Iteratively determine Root = asx**1/3 using Halley's method and then Newton's method, noting
     ! that in this case Newton's method and Halley's menthod both converge monotonically from above
@@ -214,66 +235,87 @@ elemental function cuberoot_halley(x) result(root)
     ! and it is therefore more computationally efficient.
     num = 1.0 + 2.0*asx
     den = 2.0 + asx
-    converged = .false.
+    !converged = .false.
 
-    do itt=1,2
+    do itt=1,3
       ! Halley's method iterates estimates as Root = Root * (Root**3 + 2.*asx) / (2.*Root**3 + asx).
       num_prev = num ; den_prev = den
       num = num_prev * (num_prev**3 + 2.0 * asx * den_prev**3)
       den = den_prev * (2.0 * num_prev**3 + asx * den_prev**3)
 
-      if (num * den_prev == num_prev * den) then
-        converged = .true.
-        root_asx = num / den
-        exit
-      endif
+      !if (num * den_prev == num_prev * den) then
+      !  converged = .true.
+      !  root_asx = num / den
+      !  exit
+      !endif
     enddo
 
-    ! For the range of asx from 0.125 to 1.0 with the first guess of 1.0 and 3 iterations with
-    ! Halley's method, 2 more iterations with Newton's method suffice to converge within roundoff.
-    if (.not.converged) then ; do itt=1,4
+    !! For the range of asx from 0.125 to 1.0 with the first guess of 1.0 and 3 iterations with
+    !! Halley's method, 2 more iterations with Newton's method suffice to converge within roundoff.
+    !if (.not.converged) then ; do itt=1,4
 
-      ! Newton's method iterates estimates as Root = Root - (Root**3 - asx) / (3.0 * Root**2), or
-      ! equivalently as Root = (2.0*Root**3 + asx) / (3.0 * Root**2).
-      num_prev = num ; den_prev = den
-      num = 2.0 * num_prev**3 + asx * den_prev**3
-      den = 3.0 * (den_prev * num_prev**2)
+    !  ! Newton's method iterates estimates as Root = Root - (Root**3 - asx) / (3.0 * Root**2), or
+    !  ! equivalently as Root = (2.0*Root**3 + asx) / (3.0 * Root**2).
+    !  num_prev = num ; den_prev = den
+    !  num = 2.0 * num_prev**3 + asx * den_prev**3
+    !  den = 3.0 * (den_prev * num_prev**2)
 
-      ! Because successive estimates of the numerator and denominator tend to be the cube of their
-      ! predecessors, the numerator and denominator need to be rescaled when they get too large or
-      ! small to avoid overflow or underflow in the convergence test below.
-      if ((den > den_max) .or. (den < den_min)) then
-        num = scale(num, -exponent(den))
-        den = scale(den, -exponent(den))
-      endif
+    !  ! Because successive estimates of the numerator and denominator tend to be the cube of their
+    !  ! predecessors, the numerator and denominator need to be rescaled when they get too large or
+    !  ! small to avoid overflow or underflow in the convergence test below.
+    !  if ((den > den_max) .or. (den < den_min)) then
+    !    num = scale(num, -exponent(den))
+    !    den = scale(den, -exponent(den))
+    !  endif
 
-      if ((num * den_prev == num_prev * den) .or. (num**3 == asx * den**3) .or. (itt == 4)) then
-        !   If successive estimates of root are identical, this is a converged solution.
-        root_asx = num / den
-        exit
-      elseif (num * den_prev > num_prev * den) then
-        !   If the estimates are increasing, this also indicates convergence, but for a more subtle
-        ! reason.  Because Newton's method converges monotonically from above (at least for infinite
-        ! precision math), the only reason why this estimate could increase is if the iterations
-        ! have converged to a roundoff-level limit cycle around an irrational or otherwise
-        ! unrepresentable solution, with values only changing in the last bit or two.  If so, we
-        ! should stop iterating and accept the one of the current or previous solutions, both of
-        ! which will be within numerical roundoff of the true solution.
-        root_asx = num / den
-        ! Pick the more accurate of the last two iterations.
-        ! Given that both of the two previous iterations are within roundoff of the true
-        ! solution, this next step might be overkill.
-        if ( abs(den_prev**3*root_asx**3 - den_prev**3*asx) > abs(num_prev**3 - den_prev**3*asx) ) then
-          ! The previous iteration was slightly more accurate, so use that for root_asx.
-          root_asx = num_prev / den_prev
-        endif
-        exit
-      endif
+    !  if ((num * den_prev == num_prev * den) .or. (num**3 == asx * den**3) .or. (itt == 4)) then
+    !    !   If successive estimates of root are identical, this is a converged solution.
+    !    root_asx = num / den
+    !    exit
+    !  elseif (num * den_prev > num_prev * den) then
+    !    !   If the estimates are increasing, this also indicates convergence, but for a more subtle
+    !    ! reason.  Because Newton's method converges monotonically from above (at least for infinite
+    !    ! precision math), the only reason why this estimate could increase is if the iterations
+    !    ! have converged to a roundoff-level limit cycle around an irrational or otherwise
+    !    ! unrepresentable solution, with values only changing in the last bit or two.  If so, we
+    !    ! should stop iterating and accept the one of the current or previous solutions, both of
+    !    ! which will be within numerical roundoff of the true solution.
+    !    root_asx = num / den
+    !    ! Pick the more accurate of the last two iterations.
+    !    ! Given that both of the two previous iterations are within roundoff of the true
+    !    ! solution, this next step might be overkill.
+    !    if ( abs(den_prev**3*root_asx**3 - den_prev**3*asx) > abs(num_prev**3 - den_prev**3*asx) ) then
+    !      ! The previous iteration was slightly more accurate, so use that for root_asx.
+    !      root_asx = num_prev / den_prev
+    !    endif
+    !    exit
+    !  endif
 
-    enddo ; endif
+    !enddo ; endif
 
-    root = sign(scale(root_asx, ex_3), x)
+    !root = sign(scale(root_asx, ex_3), x)
+    root = num / den
   endif
 
-end function cuberoot_halley
+end function cuberoot_halley_nodiv
+
+
+elemental function cuberoot_halley_div(x) result(root)
+  real, intent(in) :: x
+  real :: root
+
+  real :: r
+  integer :: i
+
+  if (x == 0.) then
+    root = 0.
+  else
+    root = 1.
+    do i = 1, 4
+      r = root 
+      root = r * (r**3 + 2.*x) / (2.*r**3 + x)
+    enddo
+  endif
+end function cuberoot_halley_div
+
 end
