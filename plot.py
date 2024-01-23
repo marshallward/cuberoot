@@ -1,10 +1,10 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-data = np.loadtxt('out2')
+data = np.loadtxt('out3')
 data3 = np.loadtxt('out3')
 
-fig, axes = plt.subplots(5,1)
+fig, axes = plt.subplots(5,1, figsize=(4,10))
 
 for ax in axes:
     ax.set_ylim(0, 4e-16)
@@ -18,15 +18,26 @@ axes[0].set_title("x**(1./3.)")
 axes[1].plot(data3[:,0], data3[:,3])
 axes[1].set_title("Newton Solver (7 iterations)")
 
-axes[2].plot(data3[:,0], data3[:,4])
-axes[2].plot(data[:,0], data[:,4])
-axes[2].set_title("Divisionless Newton Solver (MOM6 cuberoot())")
+#axes[2].plot(data3[:,0], data3[:,4])
+#axes[2].plot(data[:,0], data[:,4])
+#axes[2].set_title("Divisionless Newton Solver (MOM6 cuberoot())")
 
-axes[3].plot(data3[:,0], data3[:,6])
-axes[3].set_title("Halley Solver")
+axes[2].plot(data3[:,0], data3[:,6])
+axes[2].set_title("Halley Solver")
 
-axes[4].plot(data3[:,0], data3[:,5])
-axes[4].plot(data[:,0], data[:,5])
-axes[4].set_title("Divisionless Halley Solver (PR #....)")
+axes[3].plot(data3[:,0], data3[:,5])
+axes[3].plot(data[:,0], data[:,5])
+axes[3].set_title("Divisionless Halley Solver (v1)")
 
-plt.show()
+axes[4].plot(data3[:,0], data3[:,7])
+axes[4].set_title("Updated Solver")
+
+
+for ax in axes:
+    ax.axhline(2.2e-16, linestyle="--")
+
+plt.subplots_adjust(hspace=0.6)
+
+#plt.show()
+plt.savefig('err.svg')
+plt.savefig('err.png')

@@ -64,6 +64,14 @@ end do
 call system_clock(count=c2)
 print *, "Halley no_div:", (c2 - c1) / clock_rate / niter
 
+r = cuberoot_final(x)
+call system_clock(count=c1)
+do i = 1, niter
+r = cuberoot_final(x)
+end do
+call system_clock(count=c2)
+print *, "Halley Final:", (c2 - c1) / clock_rate / niter
+
 contains
 
 elemental function cuberoot_newton(x) result(root)
@@ -78,6 +86,9 @@ elemental function cuberoot_newton(x) result(root)
     r = root
     root = (2.*r**3 + x) / (3.*r**2)
   enddo
+
+  ! Bit cleanup
+  root = root - (root**3 - x) / (3.*root**2)
 end function cuberoot_newton
 
 elemental function cuberoot_newton_quad(x) result(root)
@@ -312,10 +323,81 @@ elemental function cuberoot_halley_div(x) result(root)
   else
     root = 1.
     do i = 1, 4
-      r = root 
+      r = root
       root = r * (r**3 + 2.*x) / (2.*r**3 + x)
     enddo
   endif
+
+  root = root - (root**3 - x) / (3.*root**2)
 end function cuberoot_halley_div
+
+!> Returns the cube root of a real argument at roundoff accuracy, in a form that works properly with
+!! rescaling of the argument by integer powers of 8.  If the argument is a NaN, a NaN is returned.
+elemental function cuberoot_final(x) result(root)
+  real, intent(in) :: x !< The argument of cuberoot in arbitrary units cubed [A3]
+  real :: root !< The real cube root of x in arbitrary units [A]
+
+  real :: asx ! The absolute value of x rescaled by an integer power of 8 to put it into
+              ! the range from 0.125 < asx <= 1.0, in ambiguous units cubed [B3]
+  real :: root_asx ! The cube root of asx [B]
+  real :: num ! The numerator of an expression for the evolving estimate of the cube root of asx
+              ! in arbitrary units that can grow or shrink with each iteration [B C]
+  real :: den ! The denominator of an expression for the evolving estimate of the cube root of asx
+              ! in arbitrary units that can grow or shrink with each iteration [C]
+  real :: num_prev ! The numerator of an expression for the previous iteration of the evolving estimate
+              ! of the cube root of asx in arbitrary units that can grow or shrink with each iteration [B D]
+  real :: den_prev ! The denominator of an expression for the previous iteration of the evolving estimate of
+              ! the cube root of asx in arbitrary units that can grow or shrink with each iteration [D]
+  integer :: ex_3 ! One third of the exponent part of x, used to rescale x to get a.
+  integer :: itt
+
+  if ((x >= 0.0) .eqv. (x <= 0.0)) then
+    ! Return 0 for an input of 0, or NaN for a NaN input.
+    root = x
+  else
+    ex_3 = ceiling(exponent(x) / 3.)
+    ! Here asx is in the range of 0.125 <= asx < 1.0
+    asx = scale(abs(x), -3*ex_3)
+
+    ! Iteratively determine Root = asx**1/3 using Halley's method and then Newton's method, noting
+    ! that in this case Newton's method and Halley's menthod both converge monotonically from above
+    ! and need no bounding.  Halley's method is slightly mroe complicated that Newton's method, but
+    ! converges in a third fewer iterations.  The combiation used here saves 2 iterations over just
+    ! using Newton's method.
+
+    !   This first estimate is one iteration of Halley's method with a starting guess of 1.  It is
+    ! always an over-estimate of the true solution, but it is a good approximation for asx near 1.
+    !   Keeping the estimates in a fractional form Root = num / den allows this calculation with
+    ! no real divisions during the iterations before doing a single real division at the end,
+    ! and it is therefore more computationally efficient.
+    num = 0.5 + asx
+    den = 1.0 + 0.5*asx
+    ! Equivalent to:  root_asx = (1.0 + 2.0*asx) / (2.0 + asx)
+
+    do itt=1,2
+      ! Halley's method iterates estimates as Root = Root * (Root**3 + 2.*asx) / (2.*Root**3 + asx).
+      num_prev = num ; den_prev = den
+      num = num_prev * (num_prev**3 + 2.0 * asx * den_prev**3)
+      den = den_prev * (2.0 * num_prev**3 + asx * den_prev**3)
+      ! Equivalent to:  root_asx = root_asx * (root_asx**3 + 2.*asx) / (2.*root_asx**3 + asx)
+    enddo
+    ! At this point the error in the root is better than 1 part in 2e7.
+
+    ! Newton's method iterates estimates as Root = Root - (Root**3 - asx) / (3.0 * Root**2), or
+    ! equivalently as Root = (2.0*Root**3 + asx) / (3.0 * Root**2).
+
+    ! For asx in the range of 0.125 to 1., this iteration of Newton's method gives answers that
+    ! are close to being within roundoff of the true solution.
+    root_asx = (2.0 * num**3 + asx * den**3) / ( 3.0 * (den * num**2) )
+    ! Equivalent to:  root_asx = (2.0*root_asx**3 + asx) / (3.0*root_asx**2)
+
+    ! One final iteration of Newton's method with the tradional correction form polishes
+    ! up the root and gives a solution that is within the last bit of the true solution.
+    root_asx = root_asx - (root_asx**3 - asx) / (3.0 * root_asx**2)
+
+    root = sign(scale(root_asx, ex_3), x)
+  endif
+end function cuberoot_final
+
 
 end
