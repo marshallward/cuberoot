@@ -5,24 +5,6 @@ implicit none
 
 contains
 
-elemental function cuberoot_newton(x) result(root)
-  real, intent(in) :: x
-  real :: root
-
-  integer :: i
-
-  root = 0.721124785153704
-  do i=1,6
-    !r = root
-    !root = (2.*r**3 + x) / (3.*r**2)
-    root = root - (root**3 - x) / (3.*root**2)
-  enddo
-
-  ! Bit cleanup
-  !root = root - (root**3 - x) / (3.*root**2)
-end function cuberoot_newton
-
-
 elemental function cuberoot_newton_quad(x) result(root)
   real(kind=real128), intent(in) :: x
   real(kind=real128) :: root
@@ -40,6 +22,26 @@ elemental function cuberoot_newton_quad(x) result(root)
     enddo
   endif
 end function cuberoot_newton_quad
+
+
+elemental function cuberoot_newton(x) result(root)
+  real, intent(in) :: x
+  real :: root
+
+  integer :: i
+
+  !root = 0.721124785153704
+  root = 1.
+  !root = (2. + x) / 3.
+  do i=1,6
+    !r = root
+    !root = (2.*r**3 + x) / (3.*r**2)
+    root = root - (root**3 - x) / (3.*root**2)
+  enddo
+
+  ! Bit cleanup
+  !root = root - (root**3 - x) / (3.*root**2)
+end function cuberoot_newton
 
 
 !> Returns the cube root of a real argument at roundoff accuracy, in a form that works properly with
@@ -239,6 +241,8 @@ elemental function cuberoot_halley_nodiv(x) result(root)
 
     !root = sign(scale(root_asx, ex_3), x)
     root = num / den
+
+
   endif
 
 end function cuberoot_halley_nodiv
@@ -288,9 +292,10 @@ elemental function cuberoot_final(x) result(root)
     ! Return 0 for an input of 0, or NaN for a NaN input.
     root = x
   else
-    ex_3 = ceiling(exponent(x) / 3.)
-    ! Here asx is in the range of 0.125 <= asx < 1.0
-    asx = scale(abs(x), -3*ex_3)
+    !ex_3 = ceiling(exponent(x) / 3.)
+    !! Here asx is in the range of 0.125 <= asx < 1.0
+    !asx = scale(abs(x), -3*ex_3)
+    asx = x
 
     ! Iteratively determine Root = asx**1/3 using Halley's method and then Newton's method, noting
     ! that in this case Newton's method and Halley's menthod both converge monotonically from above
@@ -328,7 +333,8 @@ elemental function cuberoot_final(x) result(root)
     ! up the root and gives a solution that is within the last bit of the true solution.
     root_asx = root_asx - (root_asx**3 - asx) / (3.0 * root_asx**2)
 
-    root = sign(scale(root_asx, ex_3), x)
+    !root = sign(scale(root_asx, ex_3), x)
+    root = root_asx
   endif
 end function cuberoot_final
 

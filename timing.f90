@@ -16,7 +16,8 @@ integer, parameter :: niter = 20
 integer :: count_rate, count_max, c1, c2
 real :: clock_rate
 
-read(*,*) k
+!read(*,*) k
+k = 24
 n = 1 + 7 * 2**(k-3)
 
 allocate(x(n), r(n))

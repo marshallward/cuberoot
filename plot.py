@@ -22,11 +22,10 @@ axes[1].set_title("Newton Solver (7 iterations)")
 #axes[2].plot(data[:,0], data[:,4])
 #axes[2].set_title("Divisionless Newton Solver (MOM6 cuberoot())")
 
-axes[2].plot(data3[:,0], data3[:,6])
+axes[3].plot(data3[:,0], data3[:,5])
 axes[2].set_title("Halley Solver")
 
-axes[3].plot(data3[:,0], data3[:,5])
-axes[3].plot(data[:,0], data[:,5])
+axes[2].plot(data3[:,0], data3[:,6])
 axes[3].set_title("Divisionless Halley Solver (v1)")
 
 axes[4].plot(data3[:,0], data3[:,7])
@@ -34,7 +33,8 @@ axes[4].set_title("Updated Solver")
 
 
 for ax in axes:
-    ax.axhline(2.2e-16, linestyle="--")
+    for k in [-52, -53, -54]:
+        ax.axhline(2**k, linestyle="--", color='k', linewidth=0.5)
 
 plt.subplots_adjust(hspace=0.6)
 

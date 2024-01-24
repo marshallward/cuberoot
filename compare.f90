@@ -8,7 +8,8 @@ real, allocatable :: x(:)
 integer :: i
 
 !print *, "Resolution (as k in 2**-k)?"
-read (*,*) k
+!read (*,*) k
+k = 20
 n = 1 + 7 * 2**(k-3)
 allocate(x(n))
 
