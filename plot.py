@@ -3,11 +3,13 @@ import matplotlib.pyplot as plt
 
 data = np.loadtxt('out3')
 data3 = np.loadtxt('out3')
+#data3 = np.loadtxt('out3_intel')
 
-fig, axes = plt.subplots(6,1, figsize=(4,10))
+fig, axes = plt.subplots(6,1, figsize=(6,10))
 
 for ax in axes:
-    ax.set_ylim(0, 1.25*1.1e-16)
+    ax.set_ylim(0, 0.75*1.1e-16)
+    #ax.set_ylim(0, 4.4e-16)
     ax.set_xlim(0.125, 1.0)
 
 fig.suptitle("Error (with respect to 128-bit precision Newton)")
@@ -37,6 +39,6 @@ for ax in axes:
 
 plt.subplots_adjust(hspace=0.6)
 
-plt.show()
-#plt.savefig('err.svg')
-#plt.savefig('err.png')
+#plt.show()
+plt.savefig('err.svg')
+plt.savefig('err.png')

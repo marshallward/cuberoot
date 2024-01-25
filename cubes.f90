@@ -5,6 +5,8 @@ implicit none
 
 contains
 
+! Compute the cube root in quadrature precision
+! ... but only to double precision (as print* shows, at least).
 elemental function cuberoot_newton_quad(x) result(root)
   real(kind=real128), intent(in) :: x
   real(kind=real128) :: root
@@ -35,7 +37,6 @@ elemental function cuberoot_newton(x) result(r)
     r = x
   else
     ! Implicitly initialize with r = 1, followed one iteration.
-    ! This appears to be faster than explicit r = 1 with six iterations.
     r = (2. + x) / 3.
 
     ! Do not simplify!  The form r = r - f/f' minimizes noise around the ULP.
@@ -87,8 +88,6 @@ elemental function cuberoot_newton_nodiv(x) result(root)
               ! of the cube root of asx in arbitrary units that can grow or shrink with each iteration [B D]
   real :: den_prev ! The denominator of an expression for the previous iteration of the evolving estimate of
               ! the cube root of asx in arbitrary units that can grow or shrink with each iteration [D]
-  real, parameter :: den_min = 2.**(minexponent(1.) / 4 + 4)  ! A value of den that triggers rescaling [C]
-  real, parameter :: den_max = 2.**(maxexponent(1.) / 4 - 2)  ! A value of den that triggers rescaling [C]
   integer :: ex_3 ! One third of the exponent part of x, used to rescale x to get a.
   integer :: itt
 
@@ -109,7 +108,6 @@ elemental function cuberoot_newton_nodiv(x) result(root)
     ! method converges monotonically from above and needs no bounding.  For the range of asx from
     ! 0.125 to 1.0 with the first guess used above, 6 iterations suffice to converge to roundoff.
 
-    !do itt=1,9
     do itt=1,4
       ! Newton's method iterates estimates as Root = Root - (Root**3 - asx) / (3.0 * Root**2), or
       ! equivalently as Root = (2.0*Root**2 + asx) / (3.0 * Root**2).
@@ -120,14 +118,6 @@ elemental function cuberoot_newton_nodiv(x) result(root)
       num_prev = num ; den_prev = den
       num = 2.0 * num_prev**3 + asx * den_prev**3
       den = 3.0 * (den_prev * num_prev**2)
-
-      ! Because successive estimates of the numerator and denominator tend to be the cube of their
-      ! predecessors, the numerator and denominator need to be rescaled by division when they get
-      ! too large or small to avoid overflow or underflow in the convergence test below.
-      !if ((den > den_max) .or. (den < den_min)) then
-      !  num = scale(num, -exponent(den))
-      !  den = scale(den, -exponent(den))
-      !endif
     enddo
 
     root = num / den
@@ -157,9 +147,6 @@ elemental function cuberoot_halley_nodiv(x) result(root)
               ! of the cube root of asx in arbitrary units that can grow or shrink with each iteration [B D]
   real :: den_prev ! The denominator of an expression for the previous iteration of the evolving estimate of
               ! the cube root of asx in arbitrary units that can grow or shrink with each iteration [D]
-  real, parameter :: den_min = 2.**(minexponent(1.) / 4 + 4)  ! A value of den that triggers rescaling [C]
-  real, parameter :: den_max = 2.**(maxexponent(1.) / 4 - 2)  ! A value of den that triggers rescaling [C]
-  logical :: converged
   integer :: ex_3 ! One third of the exponent part of x, used to rescale x to get a.
   integer :: itt
 
@@ -185,15 +172,15 @@ elemental function cuberoot_halley_nodiv(x) result(root)
     ! and it is therefore more computationally efficient.
     num = 1.0 + 2.0*asx
     den = 2.0 + asx
-    !converged = .false.
 
     do itt=1,2
       ! Halley's method iterates estimates as Root = Root * (Root**3 + 2.*asx) / (2.*Root**3 + asx).
-      num_prev = num ; den_prev = den
-      num = num_prev * (num_prev**3 + 2.0 * asx * den_prev**3)
-      den = den_prev * (2.0 * num_prev**3 + asx * den_prev**3)
-    enddo
+      num_prev = num
+      den_prev = den
 
+      num = num_prev * (num_prev**3 + 2. * asx * den_prev**3)
+      den = den_prev * (2. * num_prev**3 + asx * den_prev**3)
+    enddo
     root = num / den
 
     ! Finalize with complete form
@@ -256,7 +243,6 @@ elemental function cuberoot_final(x) result(root)
       den = den_prev * (2.0 * num_prev**3 + asx * den_prev**3)
       ! Equivalent to:  root_asx = root_asx * (root_asx**3 + 2.*asx) / (2.*root_asx**3 + asx)
     enddo
-    ! At this point the error in the root is better than 1 part in 2e7.
 
     ! Newton's method iterates estimates as Root = Root - (Root**3 - asx) / (3.0 * Root**2), or
     ! equivalently as Root = (2.0*Root**3 + asx) / (3.0 * Root**2).

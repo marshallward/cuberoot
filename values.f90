@@ -21,12 +21,12 @@ do i = 1,n
   print '(*(es24.16,2x))', &
     x(i), &
     real(q, kind=real64), &
-    real(abs(x(i)**(1./3.) - q), kind=real64), &
-    real(abs(cuberoot_newton(x(i)) - q), kind=real64), &
-    real(abs(cuberoot_newton_nodiv(x(i)) - q), kind=real64), &
-    real(abs(cuberoot_halley(x(i)) - q), kind=real64), &
-    real(abs(cuberoot_halley_nodiv(x(i)) - q), kind=real64), &
-    real(abs(cuberoot_final(x(i)) - q), kind=real64)
+    x(i)**(1./3.), &
+    cuberoot_newton(x(i)), &
+    cuberoot_newton_nodiv(x(i)), &
+    cuberoot_halley(x(i)), &
+    cuberoot_halley_nodiv(x(i)), &
+    cuberoot_final(x(i))
 enddo
 
 end
