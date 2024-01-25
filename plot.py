@@ -22,10 +22,10 @@ axes[1].set_title("Newton Solver (6 iterations)")
 #axes[2].plot(data[:,0], data[:,4])
 #axes[2].set_title("Divisionless Newton Solver (MOM6 cuberoot())")
 
-axes[3].plot(data3[:,0], data3[:,5])
+axes[2].plot(data3[:,0], data3[:,5])
 axes[2].set_title("Halley Solver")
 
-axes[2].plot(data3[:,0], data3[:,6])
+axes[3].plot(data3[:,0], data3[:,6])
 axes[3].set_title("Divisionless Halley Solver (v1)")
 
 axes[4].plot(data3[:,0], data3[:,7])
