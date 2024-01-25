@@ -41,11 +41,11 @@ elemental function cuberoot_newton(x) result(r)
     r = x
   else
     ! Implicitly initialize with r = s, followed one iteration.
-    r = (2.*s**3 + x) / (3.*s**2)
+    r = (2.*(s**3) + x) / (3.*(s**2))
 
     ! Do not simplify!  The form r = r - f/f' minimizes noise around the ULP.
     do i = 1, 5
-      r = r - (r**3 - x) / (3.*r**2)
+      r = r - (r**3 - x) / (3.*(r**2))
     enddo
   endif
 end function cuberoot_newton
@@ -62,16 +62,16 @@ elemental function cuberoot_halley(x) result(r)
     r = 0.
   else
     ! Implicit initialization of r = s followed by one Halley iteration
-    r = s * (s**3 + 2. * x) / (2.*s**3 + x)
+    r = s * (s**3 + 2. * x) / (2.*(s**3) + x)
 
     ! This simplified form is faster than r = r - f f'' / (2f'*f' - f f'')
     do i = 1, 2
-      r = r * (r**3 + 2.*x) / (2.*r**3 + x)
+      r = r * (r**3 + 2.*x) / (2.*(r**3) + x)
     enddo
   endif
 
   ! Finalize with Newton iteration to minimize ULP noise.
-  r = r - (r**3 - x) / (3.*r**2)
+  r = r - (r**3 - x) / (3.*(r**2))
 end function cuberoot_halley
 
 
@@ -121,14 +121,14 @@ elemental function cuberoot_newton_nodiv(x) result(root)
       ! at the end, and it is therefore more computationally efficient.
 
       num_prev = num ; den_prev = den
-      num = 2.0 * num_prev**3 + asx * den_prev**3
-      den = 3.0 * (den_prev * num_prev**2)
+      num = 2.0 * (num_prev**3) + asx * (den_prev**3)
+      den = 3.0 * (den_prev * (num_prev**2))
     enddo
 
     root = num / den
 
     ! Finalize with Newton
-    root = root - (root**3 - asx) / (3. * root**2)
+    root = root - (root**3 - asx) / (3. * (root**2))
 
     !root = sign(scale(root_asx, ex_3), x)
   endif
@@ -176,20 +176,20 @@ elemental function cuberoot_halley_nodiv(x) result(root)
     ! no real divisions during the iterations before doing a single real division at the end,
     ! and it is therefore more computationally efficient.
     num = s * (s**3 + 2.*x)
-    den = 2.*s**3 + x
+    den = 2. * (s**3) + x
 
     do itt = 1, 2
       ! Halley's method iterates estimates as Root = Root * (Root**3 + 2.*asx) / (2.*Root**3 + asx).
       num_prev = num
       den_prev = den
 
-      num = num_prev * (num_prev**3 + 2. * asx * den_prev**3)
-      den = den_prev * (2. * num_prev**3 + asx * den_prev**3)
+      num = num_prev * (num_prev**3 + 2. * asx * (den_prev**3))
+      den = den_prev * (2. * (num_prev**3) + asx * (den_prev**3))
     enddo
     root = num / den
 
     ! Finalize with complete form
-    root = root - (root**3 - asx) / (3.*root**2)
+    root = root - (root**3 - asx) / (3. * (root**2))
 
     !root = sign(scale(root_asx, ex_3), x)
   endif
@@ -238,14 +238,14 @@ elemental function cuberoot_final(x) result(root)
     ! no real divisions during the iterations before doing a single real division at the end,
     ! and it is therefore more computationally efficient.
     num = 0.5 + asx
-    den = 1.0 + 0.5*asx
+    den = 1. + 0.5 * asx
     ! Equivalent to:  root_asx = (1.0 + 2.0*asx) / (2.0 + asx)
 
     do itt=1,2
       ! Halley's method iterates estimates as Root = Root * (Root**3 + 2.*asx) / (2.*Root**3 + asx).
       num_prev = num ; den_prev = den
-      num = num_prev * (num_prev**3 + 2.0 * asx * den_prev**3)
-      den = den_prev * (2.0 * num_prev**3 + asx * den_prev**3)
+      num = num_prev * (num_prev**3 + 2. * asx * (den_prev**3))
+      den = den_prev * (2. * (num_prev**3) + asx * (den_prev**3))
       ! Equivalent to:  root_asx = root_asx * (root_asx**3 + 2.*asx) / (2.*root_asx**3 + asx)
     enddo
 
@@ -254,12 +254,12 @@ elemental function cuberoot_final(x) result(root)
 
     ! For asx in the range of 0.125 to 1., this iteration of Newton's method gives answers that
     ! are close to being within roundoff of the true solution.
-    root_asx = (2.0 * num**3 + asx * den**3) / ( 3.0 * (den * num**2) )
+    root_asx = (2. * (num**3) + asx * (den**3)) / (3. * (den * (num**2)))
     ! Equivalent to:  root_asx = (2.0*root_asx**3 + asx) / (3.0*root_asx**2)
 
     ! One final iteration of Newton's method with the tradional correction form polishes
     ! up the root and gives a solution that is within the last bit of the true solution.
-    root_asx = root_asx - (root_asx**3 - asx) / (3.0 * root_asx**2)
+    root_asx = root_asx - (root_asx**3 - asx) / (3. * (root_asx**2))
 
     !root = sign(scale(root_asx, ex_3), x)
     root = root_asx

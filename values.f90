@@ -20,8 +20,8 @@ do i = 1,n
   q = cuberoot_newton_quad(real(x(i), kind=real128))
   print '(*(es24.16,2x))', &
     x(i), &
-    real(q, kind=real64), &
-    x(i)**(1./3.), &
+    !real(q, kind=real64), &
+    !x(i)**(1./3.), &
     cuberoot_newton(x(i)), &
     cuberoot_newton_nodiv(x(i)), &
     cuberoot_halley(x(i)), &

@@ -3,8 +3,9 @@ FCFLAGS = -fdefault-real-8 -g -O2
 #FCFLAGS = -fdefault-real-8 -g -O3 -mavx -mfma
 
 #FC = ifort
+#FCFLAGS = -g -O2 -r8 -fprotect-parens
+#FCFLAGS = -g -O2 -r8 -fp-model precise
 #FCFLAGS = -g -O3 -mavx -mfma -r8
-#FCFLAGS = -g -O2 -r8
 
 all: compare timing values
 
