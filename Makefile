@@ -17,8 +17,11 @@ values: values.f90 cubes.o
 timing: timing.f90 cubes.o
 	$(FC) $(FCFLAGS) -o $@ $^
 
+test: test.f90 cubes.o
+	$(FC) $(FCFLAGS) -o $@ $^
+
 cubes.o: cubes.f90
 	$(FC) $(FCFLAGS) -c -o $@ $<
 
 clean:
-	$(RM) cubes.mod cubes.o timing compare values
+	$(RM) cubes.mod cubes.o timing compare values test

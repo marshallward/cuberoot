@@ -3,6 +3,9 @@ module cubes
 use iso_fortran_env, only : real64, real128
 implicit none
 
+real, parameter :: s = (3./8.)**(1./3.)
+!real, parameter :: s = 1.
+
 contains
 
 ! Compute the cube root in quadrature precision
@@ -18,7 +21,7 @@ elemental function cuberoot_newton_quad(x) result(root)
     root = 0.
   else
     root = 1._real128
-    do i=1,6
+    do i = 1, 6
       r = root
       root = ((2._real128)*r**3 + x) / ((3._real128)*r**2)
     enddo
@@ -30,14 +33,15 @@ end function cuberoot_newton_quad
 elemental function cuberoot_newton(x) result(r)
   real, intent(in) :: x
   real :: r
+  !real, parameter :: s = (3./8.)**(1./3.)
 
   integer :: i
 
   if (x == 0.) then
     r = x
   else
-    ! Implicitly initialize with r = 1, followed one iteration.
-    r = (2. + x) / 3.
+    ! Implicitly initialize with r = s, followed one iteration.
+    r = (2.*s**3 + x) / (3.*s**2)
 
     ! Do not simplify!  The form r = r - f/f' minimizes noise around the ULP.
     do i = 1, 5
@@ -57,8 +61,8 @@ elemental function cuberoot_halley(x) result(r)
   if (x == 0.) then
     r = 0.
   else
-    ! Implicit initialization of r = 1 followed by one Halley iteration
-    r = (1. + 2.*x) / (2. + x)
+    ! Implicit initialization of r = s followed by one Halley iteration
+    r = s * (s**3 + 2. * x) / (2.*s**3 + x)
 
     ! This simplified form is faster than r = r - f f'' / (2f'*f' - f f'')
     do i = 1, 2
@@ -100,10 +104,11 @@ elemental function cuberoot_newton_nodiv(x) result(root)
     !asx = scale(abs(x), -3*ex_3)
     asx = x
 
-    ! This first estimate is one iteration of Newton's method with a starting guess of 1.  It is
-    ! always an over-estimate of the true solution, but it is a good approximation for asx near 1.
-    num = 2.0 + asx
-    den = 3.0
+    ! This first estimate is one iteration of Newton's method with a starting guess of s.  It is
+    ! always an over-estimate of the true solution, but it is a good approximation for asx near s.
+    num = 2. * s**3 + asx
+    den = 3. * s**2
+
     ! Iteratively determine Root = asx**1/3 using Newton's method, noting that in this case Newton's
     ! method converges monotonically from above and needs no bounding.  For the range of asx from
     ! 0.125 to 1.0 with the first guess used above, 6 iterations suffice to converge to roundoff.
@@ -170,10 +175,10 @@ elemental function cuberoot_halley_nodiv(x) result(root)
     !   Keeping the estimates in a fractional form Root = num / den allows this calculation with
     ! no real divisions during the iterations before doing a single real division at the end,
     ! and it is therefore more computationally efficient.
-    num = 1.0 + 2.0*asx
-    den = 2.0 + asx
+    num = s * (s**3 + 2.*x)
+    den = 2.*s**3 + x
 
-    do itt=1,2
+    do itt = 1, 2
       ! Halley's method iterates estimates as Root = Root * (Root**3 + 2.*asx) / (2.*Root**3 + asx).
       num_prev = num
       den_prev = den
