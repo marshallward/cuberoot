@@ -16,7 +16,7 @@ axes[0].plot(data3[:,0], data3[:,2])
 axes[0].set_title("x**(1./3.)")
 
 axes[1].plot(data3[:,0], data3[:,3])
-axes[1].set_title("Newton Solver (7 iterations)")
+axes[1].set_title("Newton Solver (6 iterations)")
 
 #axes[2].plot(data3[:,0], data3[:,4])
 #axes[2].plot(data[:,0], data[:,4])
@@ -38,6 +38,6 @@ for ax in axes:
 
 plt.subplots_adjust(hspace=0.6)
 
-#plt.show()
-plt.savefig('err.svg')
-plt.savefig('err.png')
+plt.show()
+#plt.savefig('err.svg')
+#plt.savefig('err.png')

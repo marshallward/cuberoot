@@ -18,11 +18,13 @@ x = [(i*2.**-k, i=2**(k-3), 2**k)]
 !print '(*(a26))', "x", "Quad Newton", "x**(1./3.)", "Double Newton", "Newton No-div"
 do i = 1,n
   q = cuberoot_newton_quad(real(x(i), kind=real128))
-  print '(*(es24.16,2x))', x(i), q, &
+  print '(*(es24.16,2x))', &
+    x(i), &
+    q, &
     real(abs(x(i)**(1./3.) - q), kind=real64), &
     real(abs(cuberoot_newton(x(i)) - q), kind=real64), &
     real(abs(cuberoot_nodiv(x(i)) - q), kind=real64), &
-    real(abs(cuberoot_halley_div(x(i)) - q), kind=real64), &
+    real(abs(cuberoot_halley(x(i)) - q), kind=real64), &
     real(abs(cuberoot_halley_nodiv(x(i)) - q), kind=real64), &
     real(abs(cuberoot_final(x(i)) - q), kind=real64)
 enddo

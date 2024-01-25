@@ -24,23 +24,25 @@ elemental function cuberoot_newton_quad(x) result(root)
 end function cuberoot_newton_quad
 
 
-elemental function cuberoot_newton(x) result(root)
+elemental function cuberoot_newton(x) result(r)
   real, intent(in) :: x
-  real :: root
+  real :: r
 
   integer :: i
 
-  !root = 0.721124785153704
-  root = 1.
-  !root = (2. + x) / 3.
-  do i=1,6
-    !r = root
-    !root = (2.*r**3 + x) / (3.*r**2)
-    root = root - (root**3 - x) / (3.*root**2)
-  enddo
+  if (x == 0.) then
+    r = x
+  else
+    ! Implicitly initialize with root = 1, followed one iteration.
+    ! This appears to be faster than explicitly doing six iterations.
+    r = (2. + x) / 3.
 
-  ! Bit cleanup
-  !root = root - (root**3 - x) / (3.*root**2)
+    ! Apply 5 more iterations; too many adds noise around 0.125
+    ! NOTE: Do not simplify! x <- x - f / f' best reduces noise near ULP.
+    do i = 1, 5
+      r = r - (r**3 - x) / (3.*r**2)
+    enddo
+  endif
 end function cuberoot_newton
 
 
@@ -248,25 +250,23 @@ elemental function cuberoot_halley_nodiv(x) result(root)
 end function cuberoot_halley_nodiv
 
 
-elemental function cuberoot_halley_div(x) result(root)
+elemental function cuberoot_halley(x) result(r)
   real, intent(in) :: x
-  real :: root
-
   real :: r
+
   integer :: i
 
   if (x == 0.) then
-    root = 0.
+    r = 0.
   else
-    root = 1.
+    r = 1.
     do i = 1, 4
-      r = root
-      root = r * (r**3 + 2.*x) / (2.*r**3 + x)
+      r = r * (r**3 + 2.*x) / (2.*r**3 + x)
     enddo
   endif
 
-  root = root - (root**3 - x) / (3.*root**2)
-end function cuberoot_halley_div
+  r = r - (r**3 - x) / (3.*r**2)
+end function cuberoot_halley
 
 !> Returns the cube root of a real argument at roundoff accuracy, in a form that works properly with
 !! rescaling of the argument by integer powers of 8.  If the argument is a NaN, a NaN is returned.
