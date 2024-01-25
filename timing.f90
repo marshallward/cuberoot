@@ -35,7 +35,6 @@ do i = 1, niter
 end do
 call system_clock(count=c2)
 print *, "x**(1./3.):", (c2 - c1) / clock_rate / niter
-print*, sum(r)
 
 r = cuberoot_newton(x)
 call system_clock(count=c1)
@@ -44,16 +43,14 @@ do i = 1, niter
 end do
 call system_clock(count=c2)
 print *, "Newton:", (c2 - c1) / clock_rate / niter
-print*, sum(r)
 
-!r = cuberoot_nodiv(x)
-!call system_clock(count=c1)
-!do i = 1, niter
-!  r = cuberoot_nodiv(x)
-!end do
-!call system_clock(count=c2)
-!print *, "Newton No_div:", (c2 - c1) / clock_rate / niter
-!print*, sum(r)
+r = cuberoot_newton_nodiv(x)
+call system_clock(count=c1)
+do i = 1, niter
+  r = cuberoot_newton_nodiv(x)
+end do
+call system_clock(count=c2)
+print *, "Newton No_div:", (c2 - c1) / clock_rate / niter
 
 r = cuberoot_halley(x)
 call system_clock(count=c1)
@@ -62,7 +59,6 @@ do i = 1, niter
 end do
 call system_clock(count=c2)
 print *, "Halley:", (c2 - c1) / clock_rate / niter
-print*, sum(r)
 
 r = cuberoot_halley_nodiv(x)
 call system_clock(count=c1)
@@ -71,7 +67,6 @@ do i = 1, niter
 end do
 call system_clock(count=c2)
 print *, "Halley no_div:", (c2 - c1) / clock_rate / niter
-print*, sum(r)
 
 r = cuberoot_final(x)
 call system_clock(count=c1)
@@ -80,6 +75,5 @@ do i = 1, niter
 end do
 call system_clock(count=c2)
 print *, "Halley Final:", (c2 - c1) / clock_rate / niter
-print*, sum(r)
 
 end

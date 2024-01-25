@@ -9,7 +9,7 @@ integer :: i
 
 !print *, "Resolution (as k in 2**-k)?"
 !read (*,*) k
-k = 20
+k = 17
 n = 1 + 7 * 2**(k-3)
 allocate(x(n))
 
@@ -23,7 +23,7 @@ do i = 1,n
     q, &
     real(abs(x(i)**(1./3.) - q), kind=real64), &
     real(abs(cuberoot_newton(x(i)) - q), kind=real64), &
-    real(abs(cuberoot_nodiv(x(i)) - q), kind=real64), &
+    real(abs(cuberoot_newton_nodiv(x(i)) - q), kind=real64), &
     real(abs(cuberoot_halley(x(i)) - q), kind=real64), &
     real(abs(cuberoot_halley_nodiv(x(i)) - q), kind=real64), &
     real(abs(cuberoot_final(x(i)) - q), kind=real64)
