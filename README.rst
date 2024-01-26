@@ -51,9 +51,19 @@ investigation.  The others are desirable, but can be sacrified if necessary.
    Our solutions are faster than GNU ``libm``, but slower than Intel's
    ``cbrt``.  We may be able to improve this in the future.
 
+   (NOTE: Unfortunately these comments were before the scaling was added to the
+   functions, which made them all about 4x slower.  They're now about 2-3x
+   slower than GNU libm, though also more accurate.)
+
 
 Methods
 =======
+
+In all methods, values are rescaled so that their amplitudes are between 0.125
+and 1.  The fractional parts should be unaffected by this operation.
+
+(NOTE: This is not yet included in these tests.  Values are assumed to be
+between 0.125 and 1).
 
 All methods here currently use some iterative solver of ``x**3 - a = 0``.
 
@@ -79,7 +89,19 @@ Results
 Errors
 ------
 
-TODO
+There are two considerations of error:  The value of ``a**(1./3.)`` and the
+solution to ``x**3 - a = 0``.  Although mathematically equivalent, the floating
+point results, including any implicit rounding, are not necessarily identical.
+A small error below ULP in one may be larger in the other, and vice versa.
+
+The absolute error relative to ``a**(1./3.)`` in quadratic precision are shown
+below.
+
+.. image:: img/err_gnu.svg
+
+As shown, all are comparable, although many exceed ULP (which differs across
+the range.)
+
 
 
 Timings
@@ -159,6 +181,6 @@ accurate and competitively fast.  There is no "wrong" choice.
 The fastest method was the "no-division" Halley method with a final Newton
 iteration.
 
-None of the methods were able to
-exactly produce results from quadratic precision, but all were equivalent
-within one ULP.  (Note that ``x**(1./3.)`` was also only exact within one ULP).
+None of the methods were able to exactly produce results from quadratic
+precision, but all were equivalent within one ULP.  (Note that ``x**(1./3.)``
+was also only exact within one ULP).

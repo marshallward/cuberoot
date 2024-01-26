@@ -1,6 +1,6 @@
 FC = gfortran
-FCFLAGS = -fdefault-real-8 -g -O2
-#FCFLAGS = -fdefault-real-8 -g -O3 -mavx -mfma
+#FCFLAGS = -fdefault-real-8 -g -O2
+FCFLAGS = -fdefault-real-8 -g -O3 -mavx -mfma
 
 #FC = ifort
 #FCFLAGS = -g -O2 -r8 -fprotect-parens

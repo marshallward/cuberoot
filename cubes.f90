@@ -36,16 +36,21 @@ end function cuberoot_newton_quad
 
 
 ! Six iteration Newton iteration solver for r**3 - x = 0
-elemental function cuberoot_newton(x) result(r)
-  real, intent(in) :: x
+elemental function cuberoot_newton(a) result(r)
+  real, intent(in) :: a
   real :: r
-  !real, parameter :: s = (3./8.)**(1./3.)
 
   integer :: i
+  integer :: e
+  real :: x
 
-  if (x == 0.) then
-    r = x
+  if (a == 0.) then
+    r = a
   else
+    ! Rescale to 0.125 < x < 1
+    e = ceiling(exponent(a) / 3.)
+    x = scale(abs(a), -3*e)
+
     ! Implicitly initialize with r = s, followed one iteration.
     r = (2.*(s**3) + x) / (3.*(s**2))
 
@@ -53,20 +58,29 @@ elemental function cuberoot_newton(x) result(r)
     do i = 1, 5
       r = r - (r**3 - x) / (3.*(r**2))
     enddo
+
+    ! Scale back to the new reduced exponent
+    r = sign(scale(r, e), a)
   endif
 end function cuberoot_newton
 
 
 ! Three Halley + one Newton iterative solver for r**3 - x = 0
-elemental function cuberoot_halley(x) result(r)
-  real, intent(in) :: x
+elemental function cuberoot_halley(a) result(r)
+  real, intent(in) :: a
   real :: r
 
   integer :: i
+  integer :: e
+  real :: x
 
-  if (x == 0.) then
+  if (a == 0.) then
     r = 0.
   else
+    ! Rescale to 0.125 <= x < 1
+    e = ceiling(exponent(a) / 3.)
+    x = scale(abs(a), -3*e)
+
     ! Implicit initialization of r = s followed by one Halley iteration
     r = s * (s**3 + 2. * x) / (2.*(s**3) + x)
 
@@ -74,10 +88,13 @@ elemental function cuberoot_halley(x) result(r)
     do i = 1, 2
       r = r * (r**3 + 2.*x) / (2.*(r**3) + x)
     enddo
-  endif
 
-  ! Finalize with Newton iteration to minimize ULP noise.
-  r = r - (r**3 - x) / (3.*(r**2))
+    ! Finalize with Newton iteration to minimize ULP noise.
+    r = r - (r**3 - x) / (3.*(r**2))
+
+    ! Scale back to the new reduced exponent
+    r = sign(scale(r, e), a)
+  endif
 end function cuberoot_halley
 
 
@@ -167,10 +184,9 @@ elemental function cuberoot_halley_nodiv(x) result(root)
     ! Return 0 for an input of 0, or NaN for a NaN input.
     root = x
   else
-    !!ex_3 = ceiling(exponent(x) / 3.)
-    !!! Here asx is in the range of 0.125 <= asx < 1.0
-    !!asx = scale(abs(x), -3*ex_3)
-    asx = x
+    ex_3 = ceiling(exponent(x) / 3.)
+    ! Here asx is in the range of 0.125 <= asx < 1.0
+    asx = scale(abs(x), -3*ex_3)
 
     ! Iteratively determine Root = asx**1/3 using Halley's method and then Newton's method, noting
     ! that in this case Newton's method and Halley's menthod both converge monotonically from above
@@ -181,8 +197,8 @@ elemental function cuberoot_halley_nodiv(x) result(root)
     !   Keeping the estimates in a fractional form Root = num / den allows this calculation with
     ! no real divisions during the iterations before doing a single real division at the end,
     ! and it is therefore more computationally efficient.
-    num = s * (s**3 + 2.*x)
-    den = 2. * (s**3) + x
+    num = s * (s**3 + 2.*asx)
+    den = 2. * (s**3) + asx
 
     do itt = 1, 2
       ! Halley's method iterates estimates as Root = Root * (Root**3 + 2.*asx) / (2.*Root**3 + asx).
@@ -197,7 +213,7 @@ elemental function cuberoot_halley_nodiv(x) result(root)
     ! Finalize with complete form
     root = root - (root**3 - asx) / (3. * (root**2))
 
-    !root = sign(scale(root_asx, ex_3), x)
+    root = sign(scale(root, ex_3), x)
   endif
 
 end function cuberoot_halley_nodiv
