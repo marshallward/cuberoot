@@ -3,7 +3,13 @@ module cubes
 use iso_fortran_env, only : real64, real128
 implicit none
 
+! Hallberg proposes starting with (3/8)^(1/3) for Newton iteration.
+! This equates the relative error of the first estimate x1 for a=0.125 and 1.
+! That is, (x1 - 1/2) / x1 = (x1' - 1) / x1'.
+! This is less relevant to Halley solvers, but 0.7 seems a good choice overall.
 real, parameter :: s = (3./8.)**(1./3.)
+
+! This guess represents an upper bound, albeit biased towards higher values.
 !real, parameter :: s = 1.
 
 contains
@@ -64,7 +70,7 @@ elemental function cuberoot_halley(x) result(r)
     ! Implicit initialization of r = s followed by one Halley iteration
     r = s * (s**3 + 2. * x) / (2.*(s**3) + x)
 
-    ! This simplified form is faster than r = r - f f'' / (2f'*f' - f f'')
+    ! This simplified form is faster than r = r - 2 f f' / (2f'*f' - f f'')
     do i = 1, 2
       r = r * (r**3 + 2.*x) / (2.*(r**3) + x)
     enddo
@@ -99,10 +105,10 @@ elemental function cuberoot_newton_nodiv(x) result(root)
     ! Return 0 for an input of 0, or NaN for a NaN input.
     root = x
   else
-    !ex_3 = ceiling(exponent(x) / 3.)
-    !! Here asx is in the range of 0.125 <= asx < 1.0
-    !asx = scale(abs(x), -3*ex_3)
-    asx = x
+    ex_3 = ceiling(exponent(x) / 3.)
+    ! Here asx is in the range of 0.125 <= asx < 1.0
+    asx = scale(abs(x), -3*ex_3)
+    !asx = x
 
     ! This first estimate is one iteration of Newton's method with a starting guess of s.  It is
     ! always an over-estimate of the true solution, but it is a good approximation for asx near s.
@@ -130,7 +136,7 @@ elemental function cuberoot_newton_nodiv(x) result(root)
     ! Finalize with Newton
     root = root - (root**3 - asx) / (3. * (root**2))
 
-    !root = sign(scale(root_asx, ex_3), x)
+    root = sign(scale(root, ex_3), x)
   endif
 end function cuberoot_newton_nodiv
 
@@ -237,8 +243,17 @@ elemental function cuberoot_final(x) result(root)
     !   Keeping the estimates in a fractional form Root = num / den allows this calculation with
     ! no real divisions during the iterations before doing a single real division at the end,
     ! and it is therefore more computationally efficient.
-    num = 0.5 + asx
-    den = 1. + 0.5 * asx
+    !num = 0.5 + asx
+    !den = 1. + 0.5 * asx
+
+    ! Initialize with 0.7071...
+    !num = 0.707106
+    !den = 1.0
+
+    ! Explicitly apply the first step
+    num = 0.707106 * (0.707106**3 + 2. * asx)
+    den = 2. * (0.707106**3) + asx
+
     ! Equivalent to:  root_asx = (1.0 + 2.0*asx) / (2.0 + asx)
 
     do itt=1,2
@@ -254,8 +269,11 @@ elemental function cuberoot_final(x) result(root)
 
     ! For asx in the range of 0.125 to 1., this iteration of Newton's method gives answers that
     ! are close to being within roundoff of the true solution.
-    root_asx = (2. * (num**3) + asx * (den**3)) / (3. * (den * (num**2)))
+    !root_asx = (2. * (num**3) + asx * (den**3)) / (3. * (den * (num**2)))
     ! Equivalent to:  root_asx = (2.0*root_asx**3 + asx) / (3.0*root_asx**2)
+
+    ! Or simply just divide as in cuberoot_halley_nodiv
+    root_asx = num / den
 
     ! One final iteration of Newton's method with the tradional correction form polishes
     ! up the root and gives a solution that is within the last bit of the true solution.
