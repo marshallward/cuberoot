@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 lw = 0.1
+#lw = 1
 plot_fma = False
 
 #data = np.loadtxt('out3')

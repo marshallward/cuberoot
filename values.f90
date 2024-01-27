@@ -27,7 +27,7 @@ do i = 1,n
     !cuberoot_newton_nodiv(x(i)), &
     !cuberoot_halley(x(i)), &
     !cuberoot_halley_nodiv(x(i)), &
-    !cuberoot_final(x(i))
+    !cuberoot_lagny(x(i))
 enddo
 
 end

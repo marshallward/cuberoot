@@ -24,5 +24,13 @@ test: test.f90 cubes.o
 cubes.o: cubes.f90
 	$(FC) $(FCFLAGS) -c -o $@ $<
 
+# Plot generation
+
+err.svg: plot.py out3
+	python plot.py
+
+out3: compare
+	./compare > out3
+
 clean:
 	$(RM) cubes.mod cubes.o timing compare values test

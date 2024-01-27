@@ -68,10 +68,10 @@ end do
 call system_clock(count=c2)
 print *, "Halley no_div:", (c2 - c1) / clock_rate / niter
 
-r = cuberoot_final(x)
+r = cuberoot_lagny(x)
 call system_clock(count=c1)
 do i = 1, niter
-  r = cuberoot_final(x)
+  r = cuberoot_lagny(x)
 end do
 call system_clock(count=c2)
 print *, "Halley Final:", (c2 - c1) / clock_rate / niter
