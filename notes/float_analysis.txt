@@ -1,0 +1,93 @@
+======================
+Floating point Algebra
+======================
+
+(This is just me working through Robin Leroy's essay from the Principia
+library.  Nothing innovative here from me...)
+
+
+Exponential form
+----------------
+
+First define the fractional part of a real number :math:`a`.
+
+.. math::
+
+   \text{frac} \ a \equiv a - \lfloor a \rfloor \in [0,1)
+
+The fractional part is truly fractional and is always less than one, and it is
+zero when there is no fractional part.
+
+Next consider a fairly common operation, :math:`\lfloor \log_2 a \rfloor`.
+This tells you which power of two bounds :math:`a` from below.  For example,
+:math:`\lfloor \log_2 15.5 \rfloor` is 3, since it is bounded by :math:`2^3`
+and :math:`2^4`.  The lost part of :math:`a` is the part which cannot be
+expressed as a power of 2, and behaves as a "fraction" with respect to this
+factor.
+
+So :math:`a` can be written (perhaps somewhat dubiously) in terms of this new
+exponent:  
+
+.. math::
+
+   a = 2^{\log_2 a} = 2^{\lfloor \log_2 a \rfloor}
+      \left( 2^{-\lfloor \log_2 a \rfloor} a \right)
+
+:math:`2^{-\lfloor \log_2 a \rfloor} a` quantifies the degree of
+proportionality between :math:`2^{\lfloor \log_2 a \rfloor}` and
+:math:`2^{\lfloor \log_2 a \rfloor + 1}`.  To see this more explicitly,
+consider the fractional part of :math:`2^{-\lfloor \log_2 a \rfloor} a`.
+
+.. math::
+
+   \text{frac} \left( 2^{-\lfloor \log_2 a \rfloor} a \right)
+     = 2^{-\lfloor \log_2 a \rfloor} a
+      - \lfloor{ 2^{-\lfloor \log_2 a \rfloor} a \rfloor}
+
+     = 2^{-\lfloor \log_2 a \rfloor} a
+      - \lfloor{ 2^{\log_2 a - \lfloor \log_2 a \rfloor} \rfloor}
+
+In the second term, the exponent of 2 is bounded by :math:`[0,1)`, meaning that
+the term as a whole must be bounded from below by 1 and must be less than 2.
+Therefore, the second term must be equal to 1.  From this, we can write the
+following identity.
+
+.. math::
+
+   2^{-\lfloor \log_2 a \rfloor} = 1
+      + \text{frac} \left( 2^{-\lfloor \log_2 a \rfloor} \right)
+
+and bringing it all together,
+
+.. math::
+
+   a = 2^{\lfloor \log_2 a \rfloor}
+      \left( 1 + \text{frac} \ 2^{-\lfloor \log_2 a \rfloor} \right)
+
+which is the standard form of a modern floating point number.
+
+None of these identities are particularly profound; any one of them could
+probably have been written down after a little thought.  The real purpose of
+writing all these down is to show that there is a kind of algebraic process by
+which one can derive such expressions.  It is also an attempt (for me at least)
+to become a bit more comfortable with the exponential decomposition.
+
+Also, this does not yet represent an actual floating point number, only the
+general exponential decomposition used by such numbers.  The actual "floating"
+comes about after one considers the change in fractional terms in response to
+changing exponents.  This is when floating point analysis becomes more
+complicated.
+
+
+Fixed point form
+----------------
+
+Not only can the usual floating 
+
+First consider a number :math:`a` and its computational counterpart :math:`A`.
+
+.. math::
+
+   A \equiv b + \lfloor \log_2 a \rfloor + \text{frac}  
+
+TODO...
