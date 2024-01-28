@@ -5,7 +5,8 @@ use iso_fortran_env, only : int64
 implicit none
 
 ! Hallberg proposes starting with (3/8)^(1/3) for Newton iteration.
-! This equates the relative error of the first estimate x1 for a=0.125 and 1.  ! That is, (x1 - 1/2) / x1 = (x1' - 1) / x1'.
+! This equates the relative error of the first estimate x1 for a=0.125 and 1.
+! That is, (x1 - 1/2) / x1 = (x1' - 1) / x1'.
 ! This is less relevant to Halley solvers, but 0.7 seems a good choice overall.
 real, parameter :: s = (3./8.)**(1./3.)
 
@@ -92,7 +93,7 @@ pure function descale_cbrt(x, e_a, s_a) result(r)
   integer(kind=real64) :: e_r
     ! Exponent of the descaled value
 
-  ! Extract the exponent of the rescaled value: {-3, -2, -1}
+  ! Extract the exponent of the rescaled value, in {-3, -2, -1}
   xb = transfer(x, 1_8)
   e_r = ibits(xb, 52, 11)
 
@@ -194,17 +195,7 @@ elemental function cuberoot_newton_nodiv(x) result(root)
     ! Return 0 for an input of 0, or NaN for a NaN input.
     root = x
   else
-    ! Rescale to 0.125 < x < 1
-    a_s = ibits(xb, 63, 1)
-    xb = transfer(x, 1_8)
-    e = ibits(xb, 52, 11)
-    e_s = modulo(e, 3) + 1020
-    call mvbits(e_s, 0, 12, xb, 52)
-    asx = transfer(xb, 1._8)
-
-    !ex_3 = ceiling(exponent(x) / 3.)
-    !! Here asx is in the range of 0.125 <= asx < 1.0
-    !asx = scale(abs(x), -3*ex_3)
+    call rescale(x, asx, e_s, a_s)
 
     ! This first estimate is one iteration of Newton's method with a starting guess of s.  It is
     ! always an over-estimate of the true solution, but it is a good approximation for asx near s.
@@ -232,15 +223,8 @@ elemental function cuberoot_newton_nodiv(x) result(root)
     ! Finalize with Newton
     root = root - (root**3 - asx) / (3. * (root**2))
 
-    !root = sign(scale(root, ex_3), x)
-
-    ! Scale back to the new reduced exponent
-    xb = transfer(root, 1_8)
-    e_r = ibits(xb, 52, 11)
-    e_r = e_r + (e/3 - 340)
-    call mvbits(e_r, 0, 11, xb, 52)
-    call mvbits(a_s, 0, 1, xb, 63)
-    root = transfer(xb, 1._8)
+    ! Descale exponent and take its cube root
+    root = descale_cbrt(root, e_s, a_s)
   endif
 end function cuberoot_newton_nodiv
 
@@ -273,17 +257,7 @@ elemental function cuberoot_halley_nodiv(x) result(root)
     ! Return 0 for an input of 0, or NaN for a NaN input.
     root = x
   else
-    ! Rescale to 0.125 < x < 1
-    a_s = ibits(xb, 63, 1)
-    xb = transfer(x, 1_8)
-    e = ibits(xb, 52, 11)
-    e_s = modulo(e, 3) + 1020
-    call mvbits(e_s, 0, 12, xb, 52)
-    asx = transfer(xb, 1._8)
-
-    !ex_3 = ceiling(exponent(x) / 3.)
-    !! Here asx is in the range of 0.125 <= asx < 1.0
-    !asx = scale(abs(x), -3*ex_3)
+    call rescale(x, asx, e_s, a_s)
 
     ! Iteratively determine Root = asx**1/3 using Halley's method and then Newton's method, noting
     ! that in this case Newton's method and Halley's menthod both converge monotonically from above
@@ -310,14 +284,8 @@ elemental function cuberoot_halley_nodiv(x) result(root)
     ! Finalize with complete form
     root = root - (root**3 - asx) / (3. * (root**2))
 
-    !root = sign(scale(root, ex_3), x)
-    ! Scale back to the new reduced exponent
-    xb = transfer(root, 1_8)
-    e_r = ibits(xb, 52, 11)
-    e_r = e_r + (e/3 - 340)
-    call mvbits(e_r, 0, 11, xb, 52)
-    call mvbits(a_s, 0, 1, xb, 63)
-    root = transfer(xb, 1._8)
+    ! Descale exponent and take its cube root
+    root = descale_cbrt(root, e_s, a_s)
   endif
 end function cuberoot_halley_nodiv
 
@@ -328,17 +296,14 @@ elemental function cuberoot_lagny(a) result(r)
   real, intent(in) :: a
   real :: r
 
-  integer :: i
-  integer :: e
   real :: x
+  integer(int64) :: e_a, s_a
+  integer :: i
 
   if (a == 0.) then
     r = a
   else
-    ! Rescale to 0.125 < x < 1
-    !e = ceiling(exponent(a) / 3.)
-    !x = scale(abs(a), -3*e)
-    x = a
+    call rescale(a, x, e_a, s_a)
 
     ! Implicitly initialize with r = s, followed one iteration.
     r = (2.*(s**3) + x) / (3.*(s**2))
@@ -355,8 +320,7 @@ elemental function cuberoot_lagny(a) result(r)
       !r = k*r + sqrt(l*r**2 + (x - r**3)/(m*r))
     enddo
 
-    ! Scale back to the new reduced exponent
-    !r = sign(scale(r, e), a)
+    r = descale_cbrt(r, e_a, s_a)
   endif
 end function cuberoot_lagny
 

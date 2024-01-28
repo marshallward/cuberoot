@@ -33,10 +33,10 @@ axes[2].plot(data3[:,0], data3[:,4], linewidth=lw)
 axes[3].set_title("Halley x3 + Newton")
 axes[3].plot(data3[:,0], data3[:,5], linewidth=lw)
 
-axes[4].set_title("No-div Halley (v1)")
+axes[4].set_title("No-div Halley")
 axes[4].plot(data3[:,0], data3[:,6], linewidth=lw)
 
-axes[5].set_title("No-div Halley (v2)")
+axes[5].set_title("Lagny (?)")
 axes[5].plot(data3[:,0], data3[:,7], linewidth=lw)
 
 if plot_fma:

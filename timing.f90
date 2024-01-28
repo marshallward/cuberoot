@@ -74,6 +74,6 @@ do i = 1, niter
   r = cuberoot_lagny(x)
 end do
 call system_clock(count=c2)
-print *, "Halley Final:", (c2 - c1) / clock_rate / niter
+print *, "Lagny:", (c2 - c1) / clock_rate / niter
 
 end
