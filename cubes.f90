@@ -1,6 +1,7 @@
 module cubes
 
 use iso_fortran_env, only : real64, real128
+use iso_fortran_env, only : int64
 implicit none
 
 ! Hallberg proposes starting with (3/8)^(1/3) for Newton iteration.
@@ -34,32 +35,92 @@ elemental function cuberoot_newton_quad(x) result(root)
 end function cuberoot_newton_quad
 
 
+!> Rescale `a` to the range [0.125, 1) while preserving its fractional term.
+pure subroutine rescale(a, x, e_a, s_a)
+  real(kind=real64), intent(in) :: a
+    !< The real parameter to be rescaled.
+  real(kind=real64), intent(out) :: x
+    !< The rescaled value of `a`
+  integer(kind=int64), intent(out) :: e_a
+    !< The biased exponent of `a`
+  integer(kind=int64), intent(out) :: s_a
+    !< The sign bit of `a`
+
+  integer, parameter :: bias = 1023
+    !< The double precision exponent offset
+
+  integer(kind=int64) :: xb
+    !< A floating point number, bit-packed as an integer
+  integer(kind=int64) :: e_scaled
+    !< The new rescaled exponent of `a` (i.e. the exponent of `x`)
+
+  ! Pack bits of `a` into `xb` and extract its exponent and sign
+  xb = transfer(a, 1_int64)
+  s_a = ibits(xb, 63, 1)
+  e_a = ibits(xb, 52, 11)
+
+  ! Decompose the exponent as `e = modulo(e,3) + 3*(e/3)` and extract the
+  ! rescaled exponent, shifted to to select the triple (-3,-2,-1).
+  e_scaled = modulo(e_a, 3) - 3 + bias
+
+  ! Insert the new 11-bit exponent into `xb`, while also setting the sign bit
+  ! to zero, ensuring that `xb` is always positive.
+  call mvbits(e_scaled, 0, 12, xb, 52)
+
+  ! Transfer the final modified value to `x`
+  x = transfer(xb, 1._real64)
+end subroutine rescale
+
+
+!> Descale a real number to its original base, and apply the cube root to the
+!! remaining exponent.
+pure function descale_cbrt(x, e_a, s_a) result(r)
+  real(kind=real64), intent(in) :: x
+    !< Cube root of the rescaled value, which was rescaled to [0.125, 1.0)
+  integer(kind=real64), intent(in) :: e_a
+    !< Exponent of the original value to be cube rooted
+  integer(kind=real64), intent(in) :: s_a
+    !< Sign bit of the original value to be cube rooted
+  real(kind=real64) :: r
+    !< Restored vale with the cube root applied to its exponent
+
+  integer, parameter :: bias = 1023
+    !< The double precision exponent offset
+
+  integer(kind=real64) :: xb
+    ! Bit-packed real number into integer form
+  integer(kind=real64) :: e_r
+    ! Exponent of the descaled value
+
+  ! Extract the exponent of the rescaled value: {-3, -2, -1}
+  xb = transfer(x, 1_8)
+  e_r = ibits(xb, 52, 11)
+
+  ! Apply the cube root to the old exponent (after removing its bias) and add
+  ! to the rescaled exponent.  Correct the previous -3 with a +1.
+  e_r = e_r + (e_a/3 - bias/3 + 1)
+
+  ! Apply the corrected exponent and sign and convert back to double precision.
+  call mvbits(e_r, 0, 11, xb, 52)
+  call mvbits(s_a, 0, 1, xb, 63)
+  r = transfer(xb, 1._8)
+end function descale_cbrt
+
+
 ! Six iteration Newton iteration solver for r**3 - x = 0
 elemental function cuberoot_newton(a) result(r)
   real, intent(in) :: a
   real :: r
 
-  integer :: i
   real :: x
-  integer(8) :: xb, e, e_s, e_r, e_new
+  integer(int64) :: e_a, s_a
+  integer :: i
 
   if (a == 0.) then
     r = a
   else
     ! Rescale to 0.125 < x < 1
-    !e = ceiling(exponent(a) / 3.)
-    !x = scale(abs(a), -3*e)
-
-    ! Bit based method (faster?)
-    ! TODO: sign...
-    ! Decompose the exponent into
-    !   e = e%3 + e/3*3
-    ! so that e/3 is unambiguously the cube root of the exponent
-    xb = transfer(a, 1_8)
-    e = ibits(xb, 52, 11)
-    e_s = modulo(e, 3) + 1020
-    call mvbits(e_s, 0, 12, xb, 52)
-    x = transfer(xb, 1._8)
+    call rescale(a, x, e_a, s_a)
 
     ! Implicitly initialize with r = s, followed one iteration.
     r = (2.*(s**3) + x) / (3.*(s**2))
@@ -69,24 +130,8 @@ elemental function cuberoot_newton(a) result(r)
       r = r - (r**3 - x) / (3.*(r**2))
     enddo
 
-    ! Scale back to the new reduced exponent
-    !r = sign(scale(r, e), a)
-
-    ! Use the bit extracted e?
-    ! (Faster, but not fast enough)
-    r = sign(scale(r, e/3 - 340), a)
-
-    ! Bit methods?  (Still broken)
-    !e_new = (e - 1023) / 3 + 1023
-    !xb = transfer(r, 1_8)
-    !call mvbits(e_new, 0, 9, xb, 54)
-    !r = transfer(xb, 1._8)
-
-    !! try again
-    !xb = transfer(r, 1_8)
-    !e_r = ibits(xb, 52, 11) - 1023
-    !e_r = e_r + (e/3 - 340)
-
+    ! Unscale and apply cuberoot to exponent
+    r = descale_cbrt(r, e_a, s_a)
   endif
 end function cuberoot_newton
 
@@ -96,16 +141,15 @@ elemental function cuberoot_halley(a) result(r)
   real, intent(in) :: a
   real :: r
 
-  integer :: i
-  integer :: e
   real :: x
+  integer(int64) :: e_a, s_a
+  integer :: i
 
   if (a == 0.) then
     r = 0.
   else
-    ! Rescale to 0.125 <= x < 1
-    e = ceiling(exponent(a) / 3.)
-    x = scale(abs(a), -3*e)
+    ! Rescale to 0.125 < x < 1
+    call rescale(a, x, e_a, s_a)
 
     ! Implicit initialization of r = s followed by one Halley iteration
     r = s * (s**3 + 2. * x) / (2.*(s**3) + x)
@@ -118,8 +162,8 @@ elemental function cuberoot_halley(a) result(r)
     ! Finalize with Newton iteration to minimize ULP noise.
     r = r - (r**3 - x) / (3.*(r**2))
 
-    ! Scale back to the new reduced exponent
-    r = sign(scale(r, e), a)
+    ! Unscale and apply cuberoot to exponent
+    r = descale_cbrt(r, e_a, s_a)
   endif
 end function cuberoot_halley
 
@@ -143,15 +187,24 @@ elemental function cuberoot_newton_nodiv(x) result(root)
               ! the cube root of asx in arbitrary units that can grow or shrink with each iteration [D]
   integer :: ex_3 ! One third of the exponent part of x, used to rescale x to get a.
   integer :: itt
+  integer(8) :: xb, e, e_s, e_r, e_new
+  integer(8) :: a_s
 
   if ((x >= 0.0) .eqv. (x <= 0.0)) then
     ! Return 0 for an input of 0, or NaN for a NaN input.
     root = x
   else
-    ex_3 = ceiling(exponent(x) / 3.)
-    ! Here asx is in the range of 0.125 <= asx < 1.0
-    asx = scale(abs(x), -3*ex_3)
-    !asx = x
+    ! Rescale to 0.125 < x < 1
+    a_s = ibits(xb, 63, 1)
+    xb = transfer(x, 1_8)
+    e = ibits(xb, 52, 11)
+    e_s = modulo(e, 3) + 1020
+    call mvbits(e_s, 0, 12, xb, 52)
+    asx = transfer(xb, 1._8)
+
+    !ex_3 = ceiling(exponent(x) / 3.)
+    !! Here asx is in the range of 0.125 <= asx < 1.0
+    !asx = scale(abs(x), -3*ex_3)
 
     ! This first estimate is one iteration of Newton's method with a starting guess of s.  It is
     ! always an over-estimate of the true solution, but it is a good approximation for asx near s.
@@ -179,7 +232,15 @@ elemental function cuberoot_newton_nodiv(x) result(root)
     ! Finalize with Newton
     root = root - (root**3 - asx) / (3. * (root**2))
 
-    root = sign(scale(root, ex_3), x)
+    !root = sign(scale(root, ex_3), x)
+
+    ! Scale back to the new reduced exponent
+    xb = transfer(root, 1_8)
+    e_r = ibits(xb, 52, 11)
+    e_r = e_r + (e/3 - 340)
+    call mvbits(e_r, 0, 11, xb, 52)
+    call mvbits(a_s, 0, 1, xb, 63)
+    root = transfer(xb, 1._8)
   endif
 end function cuberoot_newton_nodiv
 
@@ -205,14 +266,24 @@ elemental function cuberoot_halley_nodiv(x) result(root)
   integer :: itt
 
   real :: r
+  integer(8) :: xb, e, e_s, e_r, e_new
+  integer(8) :: a_s
 
   if ((x >= 0.0) .eqv. (x <= 0.0)) then
     ! Return 0 for an input of 0, or NaN for a NaN input.
     root = x
   else
-    ex_3 = ceiling(exponent(x) / 3.)
-    ! Here asx is in the range of 0.125 <= asx < 1.0
-    asx = scale(abs(x), -3*ex_3)
+    ! Rescale to 0.125 < x < 1
+    a_s = ibits(xb, 63, 1)
+    xb = transfer(x, 1_8)
+    e = ibits(xb, 52, 11)
+    e_s = modulo(e, 3) + 1020
+    call mvbits(e_s, 0, 12, xb, 52)
+    asx = transfer(xb, 1._8)
+
+    !ex_3 = ceiling(exponent(x) / 3.)
+    !! Here asx is in the range of 0.125 <= asx < 1.0
+    !asx = scale(abs(x), -3*ex_3)
 
     ! Iteratively determine Root = asx**1/3 using Halley's method and then Newton's method, noting
     ! that in this case Newton's method and Halley's menthod both converge monotonically from above
@@ -239,9 +310,15 @@ elemental function cuberoot_halley_nodiv(x) result(root)
     ! Finalize with complete form
     root = root - (root**3 - asx) / (3. * (root**2))
 
-    root = sign(scale(root, ex_3), x)
+    !root = sign(scale(root, ex_3), x)
+    ! Scale back to the new reduced exponent
+    xb = transfer(root, 1_8)
+    e_r = ibits(xb, 52, 11)
+    e_r = e_r + (e/3 - 340)
+    call mvbits(e_r, 0, 11, xb, 52)
+    call mvbits(a_s, 0, 1, xb, 63)
+    root = transfer(xb, 1._8)
   endif
-
 end function cuberoot_halley_nodiv
 
 
@@ -259,8 +336,9 @@ elemental function cuberoot_lagny(a) result(r)
     r = a
   else
     ! Rescale to 0.125 < x < 1
-    e = ceiling(exponent(a) / 3.)
-    x = scale(abs(a), -3*e)
+    !e = ceiling(exponent(a) / 3.)
+    !x = scale(abs(a), -3*e)
+    x = a
 
     ! Implicitly initialize with r = s, followed one iteration.
     r = (2.*(s**3) + x) / (3.*(s**2))
@@ -278,7 +356,7 @@ elemental function cuberoot_lagny(a) result(r)
     enddo
 
     ! Scale back to the new reduced exponent
-    r = sign(scale(r, e), a)
+    !r = sign(scale(r, e), a)
   endif
 end function cuberoot_lagny
 

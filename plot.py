@@ -1,8 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-lw = 0.1
-#lw = 1
+#lw = 0.1
+lw = 1
 plot_fma = False
 
 #data = np.loadtxt('out3')
@@ -13,13 +13,13 @@ data3 = np.loadtxt('out3')
 fig, axes = plt.subplots(6,1, figsize=(6,10))
 
 for ax in axes:
-    ax.set_ylim(0, 1.1e-16)
+    #ax.set_ylim(0, 1.1e-16)
     #ax.set_ylim(0, 4.4e-16)
     #ax.set_ylim(0., 8.8e-16)
     ax.set_xlim(0.125, 1.0)
 
-#fig.suptitle("Error (with respect to 128-bit precision Newton)")
-fig.suptitle("Relative Errors ((x**1/3)**3 - x) / x")
+fig.suptitle("Error (with respect to 128-bit precision Newton)")
+#fig.suptitle("Relative Errors ((x**1/3)**3 - x) / x")
 
 axes[0].set_title("x**(1./3.)")
 axes[0].plot(data3[:,0], data3[:,2], linewidth=lw)
