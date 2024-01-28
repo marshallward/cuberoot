@@ -22,10 +22,11 @@ do i = 1,n
     x(i), &
     real(q, kind=real64), &
     x(i)**(1./3.), &
-    cuberoot_newton(x(i)), &
-    abs(x(i)**(1./3.) - cuberoot_newton(x(i)))
+    !cuberoot_newton(x(i)), &
+    !abs(x(i)**(1./3.) - cuberoot_newton(x(i)))
     !cuberoot_newton_nodiv(x(i)), &
-    !cuberoot_halley(x(i)), &
+    cuberoot_halley(x(i)), &
+    abs(x(i)**(1./3.) - cuberoot_halley(x(i)))
     !cuberoot_halley_nodiv(x(i)), &
     !cuberoot_lagny(x(i))
 enddo

@@ -38,73 +38,97 @@ end function cuberoot_newton_quad
 
 !> Rescale `a` to the range [0.125, 1) while preserving its fractional term.
 pure subroutine rescale(a, x, e_a, s_a)
-  real(kind=real64), intent(in) :: a
+  real, intent(in) :: a
     !< The real parameter to be rescaled.
-  real(kind=real64), intent(out) :: x
+  real, intent(out) :: x
     !< The rescaled value of `a`
   integer(kind=int64), intent(out) :: e_a
     !< The biased exponent of `a`
   integer(kind=int64), intent(out) :: s_a
     !< The sign bit of `a`
 
-  integer, parameter :: bias = 1023
-    !< The double precision exponent offset
+  ! Floating point model, if format is (sign, exp, frac)
+  integer, parameter :: bias = maxexponent(1.) - 1
+    !< The double precision exponent offset (assuming a balanced range)
+  integer, parameter :: signbit = storage_size(1.) - 1
+    !< Position of sign bit
+  integer, parameter :: explen = 1 + ceiling(log(real(bias))/log(2.))
+    !< Bit size of exponent
+  integer, parameter :: expbit = signbit - explen
+    !< Position of lowest exponent bit
+  integer, parameter :: fraclen = expbit
+    !< Length of fractional part
 
   integer(kind=int64) :: xb
     !< A floating point number, bit-packed as an integer
   integer(kind=int64) :: e_scaled
     !< The new rescaled exponent of `a` (i.e. the exponent of `x`)
 
+  ! NOTE: This is more readable but unfortunately not efficient in many
+  ! compilers.  I leave it here in the hope that this may someday change.
+  !a_exp = exponent(a) - 1
+  !x_exp = modulo(a_exp, 3)
+  !x = set_exponent(a, x_exp + 1)
+
   ! Pack bits of `a` into `xb` and extract its exponent and sign
   xb = transfer(a, 1_int64)
-  s_a = ibits(xb, 63, 1)
-  e_a = ibits(xb, 52, 11)
+  s_a = ibits(xb, signbit, 1)
+  e_a = ibits(xb, expbit, explen)
 
   ! Decompose the exponent as `e = modulo(e,3) + 3*(e/3)` and extract the
-  ! rescaled exponent, shifted to to select the triple (-3,-2,-1).
+  ! rescaled exponent, now in {-3,-2,-1}
   e_scaled = modulo(e_a, 3) - 3 + bias
 
   ! Insert the new 11-bit exponent into `xb`, while also setting the sign bit
   ! to zero, ensuring that `xb` is always positive.
-  call mvbits(e_scaled, 0, 12, xb, 52)
+  call mvbits(e_scaled, 0, explen + 1, xb, fraclen)
 
   ! Transfer the final modified value to `x`
-  x = transfer(xb, 1._real64)
+  x = transfer(xb, 1.)
 end subroutine rescale
 
 
 !> Descale a real number to its original base, and apply the cube root to the
 !! remaining exponent.
 pure function descale_cbrt(x, e_a, s_a) result(r)
-  real(kind=real64), intent(in) :: x
+  real, intent(in) :: x
     !< Cube root of the rescaled value, which was rescaled to [0.125, 1.0)
   integer(kind=real64), intent(in) :: e_a
     !< Exponent of the original value to be cube rooted
   integer(kind=real64), intent(in) :: s_a
     !< Sign bit of the original value to be cube rooted
-  real(kind=real64) :: r
+  real :: r
     !< Restored vale with the cube root applied to its exponent
 
-  integer, parameter :: bias = 1023
-    !< The double precision exponent offset
+  ! Floating point model, if format is (sign, exp, frac)
+  integer, parameter :: bias = maxexponent(1.) - 1
+    !< The double precision exponent offset (assuming a balanced range)
+  integer, parameter :: signbit = storage_size(1.) - 1
+    !< Position of sign bit
+  integer, parameter :: explen = 1 + ceiling(log(real(bias))/log(2.))
+    !< Bit size of exponent
+  integer, parameter :: expbit = signbit - explen
+    !< Position of lowest exponent bit
+  integer, parameter :: fraclen = expbit
+    !< Length of fractional part
 
-  integer(kind=real64) :: xb
+  integer(kind=int64) :: xb
     ! Bit-packed real number into integer form
-  integer(kind=real64) :: e_r
+  integer(kind=int64) :: e_r
     ! Exponent of the descaled value
 
   ! Extract the exponent of the rescaled value, in {-3, -2, -1}
   xb = transfer(x, 1_8)
-  e_r = ibits(xb, 52, 11)
+  e_r = ibits(xb, expbit, explen)
 
   ! Apply the cube root to the old exponent (after removing its bias) and add
   ! to the rescaled exponent.  Correct the previous -3 with a +1.
   e_r = e_r + (e_a/3 - bias/3 + 1)
 
-  ! Apply the corrected exponent and sign and convert back to double precision.
-  call mvbits(e_r, 0, 11, xb, 52)
-  call mvbits(s_a, 0, 1, xb, 63)
-  r = transfer(xb, 1._8)
+  ! Apply the corrected exponent and sign and convert back to real
+  call mvbits(e_r, 0, explen, xb, expbit)
+  call mvbits(s_a, 0, 1, xb, signbit)
+  r = transfer(xb, 1.)
 end function descale_cbrt
 
 
