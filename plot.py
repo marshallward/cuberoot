@@ -55,4 +55,3 @@ plt.subplots_adjust(hspace=0.6)
 
 #plt.show()
 plt.savefig('err.svg', bbox_inches='tight')
-plt.savefig('err.png', bbox_inches='tight')

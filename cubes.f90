@@ -1,7 +1,8 @@
 module cubes
 
-use iso_fortran_env, only : real64, real128
 use iso_fortran_env, only : int64
+use iso_fortran_env, only : real128
+
 implicit none
 
 ! Hallberg proposes starting with (3/8)^(1/3) for Newton iteration.
@@ -12,6 +13,19 @@ real, parameter :: s = (3./8.)**(1./3.)
 
 ! This guess represents an upper bound, albeit biased towards higher values.
 !real, parameter :: s = 1.
+
+! Floating point model, if bit layout from high to low is (sign, exp, frac)
+
+integer, parameter :: bias = maxexponent(1.) - 1
+  !< The double precision exponent offset
+integer, parameter :: signbit = storage_size(1.) - 1
+  !< Position of sign bit
+integer, parameter :: explen = 1 + ceiling(log(real(bias))/log(2.))
+  !< Bit size of exponent
+integer, parameter :: expbit = signbit - explen
+  !< Position of lowest exponent bit
+integer, parameter :: fraclen = expbit
+  !< Length of fractional part
 
 contains
 
@@ -36,100 +50,70 @@ elemental function cuberoot_newton_quad(x) result(root)
 end function cuberoot_newton_quad
 
 
-!> Rescale `a` to the range [0.125, 1) while preserving its fractional term.
-pure subroutine rescale(a, x, e_a, s_a)
+!> Rescale `a` to the range [0.125, 1) and compute its cube-root exponent.
+pure subroutine rescale_cbrt(a, x, e_c, s_a)
   real, intent(in) :: a
-    !< The real parameter to be rescaled.
+    !< The real parameter to be rescaled for cube root
   real, intent(out) :: x
     !< The rescaled value of `a`
-  integer(kind=int64), intent(out) :: e_a
-    !< The biased exponent of `a`
+  integer(kind=int64), intent(out) :: e_c
+    !< The cuberoot-exponent of `a`
   integer(kind=int64), intent(out) :: s_a
     !< The sign bit of `a`
 
-  ! Floating point model, if format is (sign, exp, frac)
-  integer, parameter :: bias = maxexponent(1.) - 1
-    !< The double precision exponent offset (assuming a balanced range)
-  integer, parameter :: signbit = storage_size(1.) - 1
-    !< Position of sign bit
-  integer, parameter :: explen = 1 + ceiling(log(real(bias))/log(2.))
-    !< Bit size of exponent
-  integer, parameter :: expbit = signbit - explen
-    !< Position of lowest exponent bit
-  integer, parameter :: fraclen = expbit
-    !< Length of fractional part
-
   integer(kind=int64) :: xb
-    !< A floating point number, bit-packed as an integer
-  integer(kind=int64) :: e_scaled
-    !< The new rescaled exponent of `a` (i.e. the exponent of `x`)
+    ! Floating point value of `a`, bit-packed as an integer
+  integer(kind=int64) :: e_a
+    ! Unscaled exponent of `a`
+  integer(kind=int64) :: e_x
+    ! Exponent of `x` (i.e. exponent of `a` after rescaling)
+  integer(kind=int64) :: e_div, e_mod
+    ! Quotient and remainder of `e = 3*(e/3) + e % 3`.
 
-  ! NOTE: This is more readable but unfortunately not efficient in many
-  ! compilers.  I leave it here in the hope that this may someday change.
-  !a_exp = exponent(a) - 1
-  !x_exp = modulo(a_exp, 3)
-  !x = set_exponent(a, x_exp + 1)
-
-  ! Pack bits of `a` into `xb` and extract its exponent and sign
+  ! Pack bits of `a` into `xb` and extract its exponent and sign.
   xb = transfer(a, 1_int64)
   s_a = ibits(xb, signbit, 1)
-  e_a = ibits(xb, expbit, explen)
+  e_a = ibits(xb, expbit, explen) - bias
 
-  ! Decompose the exponent as `e = modulo(e,3) + 3*(e/3)` and extract the
-  ! rescaled exponent, now in {-3,-2,-1}
-  e_scaled = modulo(e_a, 3) - 3 + bias
+  ! Decompose the exponent as `e = 3*(e//3) + modulo(e,3)`.
+  ! Fortran division is round-to-zero so we must reconstruct integer divison.
+  e_mod = modulo(e_a, 3)
+  e_div = (e_a - e_mod)/3
 
-  ! Insert the new 11-bit exponent into `xb`, while also setting the sign bit
-  ! to zero, ensuring that `xb` is always positive.
-  call mvbits(e_scaled, 0, explen + 1, xb, fraclen)
+  ! 1. Compute the exponent of final cube root of `a`.
+  !   * `e = e_a/3 + 1 + cbrt(e_x)` but `cbrt(x)` exponent is always -1.
+  e_c = (e_div + 1) - 1
 
-  ! Transfer the final modified value to `x`
+  ! 2. Construct the rescaled exponent, shifted to [0.125, 1).
+  e_x = e_mod - 3
+
+  ! Insert the new 11-bit exponent into `xb` and write to `x`, extending the
+  ! bitcount to 12, so that the sign bit is zero and `xb` is always positive.
+  call mvbits(e_x + bias, 0, explen + 1, xb, fraclen)
   x = transfer(xb, 1.)
-end subroutine rescale
+end subroutine rescale_cbrt
 
 
-!> Descale a real number to its original base, and apply the cube root to the
-!! remaining exponent.
-pure function descale_cbrt(x, e_a, s_a) result(r)
+!> Undo the rescaling of a real number back to its original base.
+pure function descale(x, e_a, s_a) result(a)
   real, intent(in) :: x
-    !< Cube root of the rescaled value, which was rescaled to [0.125, 1.0)
-  integer(kind=real64), intent(in) :: e_a
-    !< Exponent of the original value to be cube rooted
-  integer(kind=real64), intent(in) :: s_a
-    !< Sign bit of the original value to be cube rooted
-  real :: r
-    !< Restored vale with the cube root applied to its exponent
-
-  ! Floating point model, if format is (sign, exp, frac)
-  integer, parameter :: bias = maxexponent(1.) - 1
-    !< The double precision exponent offset (assuming a balanced range)
-  integer, parameter :: signbit = storage_size(1.) - 1
-    !< Position of sign bit
-  integer, parameter :: explen = 1 + ceiling(log(real(bias))/log(2.))
-    !< Bit size of exponent
-  integer, parameter :: expbit = signbit - explen
-    !< Position of lowest exponent bit
-  integer, parameter :: fraclen = expbit
-    !< Length of fractional part
+    !< The rescaled value which is to be restored.
+  integer(kind=int64), intent(in) :: e_a
+    !< Exponent of the unscaled value
+  integer(kind=int64), intent(in) :: s_a
+    !< Sign bit of the unscaled value
+  real :: a
+    !< Restored value with the corrected exponent and sign
 
   integer(kind=int64) :: xb
     ! Bit-packed real number into integer form
-  integer(kind=int64) :: e_r
-    ! Exponent of the descaled value
 
-  ! Extract the exponent of the rescaled value, in {-3, -2, -1}
+  ! Apply the corrected exponent and sign to `x`.
   xb = transfer(x, 1_8)
-  e_r = ibits(xb, expbit, explen)
-
-  ! Apply the cube root to the old exponent (after removing its bias) and add
-  ! to the rescaled exponent.  Correct the previous -3 with a +1.
-  e_r = e_r + (e_a/3 - bias/3 + 1)
-
-  ! Apply the corrected exponent and sign and convert back to real
-  call mvbits(e_r, 0, explen, xb, expbit)
+  call mvbits(e_a + bias, 0, explen, xb, expbit)
   call mvbits(s_a, 0, 1, xb, signbit)
-  r = transfer(xb, 1.)
-end function descale_cbrt
+  a = transfer(xb, 1.)
+end function descale
 
 
 ! Six iteration Newton iteration solver for r**3 - x = 0
@@ -145,7 +129,7 @@ elemental function cuberoot_newton(a) result(r)
     r = a
   else
     ! Rescale to 0.125 < x < 1
-    call rescale(a, x, e_a, s_a)
+    call rescale_cbrt(a, x, e_a, s_a)
 
     ! Implicitly initialize with r = s, followed one iteration.
     r = (2.*(s**3) + x) / (3.*(s**2))
@@ -156,7 +140,7 @@ elemental function cuberoot_newton(a) result(r)
     enddo
 
     ! Unscale and apply cuberoot to exponent
-    r = descale_cbrt(r, e_a, s_a)
+    r = descale(r, e_a, s_a)
   endif
 end function cuberoot_newton
 
@@ -174,7 +158,7 @@ elemental function cuberoot_halley(a) result(r)
     r = 0.
   else
     ! Rescale to 0.125 < x < 1
-    call rescale(a, x, e_a, s_a)
+    call rescale_cbrt(a, x, e_a, s_a)
 
     ! Implicit initialization of r = s followed by one Halley iteration
     r = s * (s**3 + 2. * x) / (2.*(s**3) + x)
@@ -188,7 +172,7 @@ elemental function cuberoot_halley(a) result(r)
     r = r - (r**3 - x) / (3.*(r**2))
 
     ! Unscale and apply cuberoot to exponent
-    r = descale_cbrt(r, e_a, s_a)
+    r = descale(r, e_a, s_a)
   endif
 end function cuberoot_halley
 
@@ -219,7 +203,7 @@ elemental function cuberoot_newton_nodiv(x) result(root)
     ! Return 0 for an input of 0, or NaN for a NaN input.
     root = x
   else
-    call rescale(x, asx, e_s, a_s)
+    call rescale_cbrt(x, asx, e_s, a_s)
 
     ! This first estimate is one iteration of Newton's method with a starting guess of s.  It is
     ! always an over-estimate of the true solution, but it is a good approximation for asx near s.
@@ -248,7 +232,7 @@ elemental function cuberoot_newton_nodiv(x) result(root)
     root = root - (root**3 - asx) / (3. * (root**2))
 
     ! Descale exponent and take its cube root
-    root = descale_cbrt(root, e_s, a_s)
+    root = descale(root, e_s, a_s)
   endif
 end function cuberoot_newton_nodiv
 
@@ -281,7 +265,7 @@ elemental function cuberoot_halley_nodiv(x) result(root)
     ! Return 0 for an input of 0, or NaN for a NaN input.
     root = x
   else
-    call rescale(x, asx, e_s, a_s)
+    call rescale_cbrt(x, asx, e_s, a_s)
 
     ! Iteratively determine Root = asx**1/3 using Halley's method and then Newton's method, noting
     ! that in this case Newton's method and Halley's menthod both converge monotonically from above
@@ -309,7 +293,7 @@ elemental function cuberoot_halley_nodiv(x) result(root)
     root = root - (root**3 - asx) / (3. * (root**2))
 
     ! Descale exponent and take its cube root
-    root = descale_cbrt(root, e_s, a_s)
+    root = descale(root, e_s, a_s)
   endif
 end function cuberoot_halley_nodiv
 
@@ -327,7 +311,7 @@ elemental function cuberoot_lagny(a) result(r)
   if (a == 0.) then
     r = a
   else
-    call rescale(a, x, e_a, s_a)
+    call rescale_cbrt(a, x, e_a, s_a)
 
     ! Implicitly initialize with r = s, followed one iteration.
     r = (2.*(s**3) + x) / (3.*(s**2))
@@ -344,7 +328,7 @@ elemental function cuberoot_lagny(a) result(r)
       !r = k*r + sqrt(l*r**2 + (x - r**3)/(m*r))
     enddo
 
-    r = descale_cbrt(r, e_a, s_a)
+    r = descale(r, e_a, s_a)
   endif
 end function cuberoot_lagny
 
