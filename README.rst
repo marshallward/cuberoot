@@ -3,8 +3,81 @@ Cube root solvers
 
 This repo contains several implementations of cube root solvers in Fortran.
 
+Results
+=======
+
+Since that is all you (the reader) probably care about...
+
+Errors
+------
+
+There are two considerations of error:  The value of ``a**(1./3.)`` and the
+solution to ``x**3 - a = 0``.  Although mathematically equivalent, the floating
+point results, including any implicit rounding, are not necessarily identical.
+A small error below ULP in one may be larger in the other, and vice versa.
+
+The absolute error relative to ``a**(1./3.)`` in quadratic precision are shown
+below.
+
+.. image:: img/err_gnu.svg
+
+As shown, all are comparable, although many exceed ULP (which differs across
+the range.)
+
+
+The final bit?
+--------------
+
+Compared to the quadratic precision, we are off by 1 ULP about 10% of the time.
+(More like 11.5% but who's counting?)  I would not call that "good" but I also
+don't know if I'm quantifying this correctly.
+
+We are never off by more than 1 ULP in my tests, which I would say is good.
+
+I see people claiming accuracy around 1 per million, but certainly not in any
+math library that I have ever used, so I need more information.
+
+
+Timings
+-------
+
+For now, I'd say "competitive with GCC" but not competitive with Intel SVML.
+
++---------------------+-------+-------+
+| Solver              |  -O2  |  -O3  |
++=====================+=======+=======+
+| GNU x**1/3          | 0.225 | 0.198 |
++---------------------+-------+-------+
+| GNU cuberoot before | 0.418 | 0.412 |
++---------------------+-------+-------+
+| GNU cuberoot after  | 0.208 | 0.187 |
++---------------------+-------+-------+
+| Intel x**1/3        | 0.068 | 0.067 |
++---------------------+-------+-------+
+| Intel before        | 0.514 | 0.507 |
++---------------------+-------+-------+
+| Intel after         | 0.213 | 0.189 |
++---------------------+-------+-------+
+
+I'll come back around and explain these (haha no I won't), but for now let's
+say they are "a big array looped over and over", so these are in a
+vector-favorable environment, and not a one-off evaluation in a much bigger
+expression.
+
+Also "-O3" includes AVX and FMA enabled.
+
+Why is Intel faster?
+--------------------
+
+Not sure yet, but one thing they are doing is fast vectorized logical
+expressions.  None of these Fortran compilers even try to compete, and just
+pop out a bunch of scalar garbage.  Not yet sure how to coax them, or if it's
+even possible without harassing compiler developers.  (Because we know that
+works, right?  HA)
+
+
 Requirements
-------------
+============
 
 This first requirement is vital, and the primary motivation for this
 investigation.  The others are desirable, but can be sacrified if necessary.
@@ -81,33 +154,6 @@ All methods here currently use some iterative solver of ``x**3 - a = 0``.
 * "No-division Halley: Same, with Halley's method (3x Halley, 1x std Newton)
 
 There is also a "Final Halley" test which is a placeholder for testing.
-
-
-Results
-=======
-
-Errors
-------
-
-There are two considerations of error:  The value of ``a**(1./3.)`` and the
-solution to ``x**3 - a = 0``.  Although mathematically equivalent, the floating
-point results, including any implicit rounding, are not necessarily identical.
-A small error below ULP in one may be larger in the other, and vice versa.
-
-The absolute error relative to ``a**(1./3.)`` in quadratic precision are shown
-below.
-
-.. image:: img/err_gnu.svg
-
-As shown, all are comparable, although many exceed ULP (which differs across
-the range.)
-
-
-
-Timings
--------
-
-TODO
 
 
 Comments

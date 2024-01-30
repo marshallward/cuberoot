@@ -18,8 +18,8 @@ for ax in axes:
     #ax.set_ylim(0., 8.8e-16)
     ax.set_xlim(0.125, 1.0)
 
-fig.suptitle("Error (with respect to 128-bit precision Newton)")
-#fig.suptitle("Relative Errors ((x**1/3)**3 - x) / x")
+#fig.suptitle("Error (with respect to 128-bit precision Newton)")
+fig.suptitle("Relative Errors ((x**1/3)**3 - x) / x")
 
 axes[0].set_title("x**(1./3.)")
 axes[0].plot(data3[:,0], data3[:,2], linewidth=lw)
