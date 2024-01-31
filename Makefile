@@ -26,11 +26,11 @@ cubes.o: cubes.f90
 
 # Plot generation
 
-err.svg: plot.py out3
+err.svg: plot.py err_quad.txt
 	python plot.py
 
-out3: compare
-	./compare > out3
+err_quad.txt: compare
+	./compare
 
 clean:
 	$(RM) cubes.mod cubes.o timing compare values test

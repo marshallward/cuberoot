@@ -6,7 +6,8 @@ This repo contains several implementations of cube root solvers in Fortran.
 Results
 =======
 
-Since that is all you (the reader) probably care about...
+(Don't take any of this too seriously, it's very much a work in progress.)
+
 
 Errors
 ------
@@ -16,8 +17,9 @@ solution to ``x**3 - a = 0``.  Although mathematically equivalent, the floating
 point results, including any implicit rounding, are not necessarily identical.
 A small error below ULP in one may be larger in the other, and vice versa.
 
-The absolute error relative to ``a**(1./3.)`` in quadratic precision are shown
-below.
+The absolute error of ``a**(1./3.)`` from the solution computed in quadratic
+precision is shown on the left.  The relative error of the solution as computed
+by the root (i.e. ``(root(x)**3 - x) / x``) is on the right.
 
 .. image:: img/err_gnu.svg
 
