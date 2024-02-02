@@ -163,40 +163,40 @@ Comments
 
 The overall structure is the same for all of these solutions.
 
-1. Select an appropriate initial value.  ``r = 0.7`` appears to be a strong
-   choice for all solvers.  There is some mathematical motivation for
-   refinement, with varying impact.
+* Select an appropriate initial value.  ``r = 0.7`` appears to be a strong
+  choice for all solvers.  There is some mathematical motivation for
+  refinement, with varying impact.
 
-2. Pre-compute the first iteration.  For example, don't do ``root = 1.``.
-   Instead, do this for Newton iteration::
+* Pre-compute the first iteration.  For example, don't do ``root = 1.``.
+  Instead, do this for Newton iteration::
 
-      root = (2. + x) / 3.
+     root = (2. + x) / 3.
 
-   This can be about 20% faster than explicitly computing the first iteration.
+  This can be about 20% faster than explicitly computing the first iteration.
 
-3. Regardless of method, finalize with an unsimplified Newton iteration::
+* Regardless of method, finalize with an unsimplified Newton iteration::
 
-      root = root - (root**3 - x) / (3. * (root**2))
+     root = root - (root**3 - x) / (3. * (root**2))
 
-   Something about the "root = root + correct" form cleans up the final few
-   bits.  (Needs a proper mathematical explanation... TODO?)
+  Something about the "root = root + correct" form cleans up the final few
+  bits.  (Needs a proper mathematical explanation... TODO?)
 
-4. Take care with exponents in order of operations.  For truly baffling
-   reasons, Intel Fortran does not regard the exponent as an independent
-   operator with highest priority in expressions like this::
+* Take care with exponents in order of operations.  For truly baffling
+  reasons, Intel Fortran does not regard the exponent as an independent
+  operator with highest priority in expressions like this::
 
-      a * b**3
+     a * b**3
 
-   and will happily compute it as::
+  and will happily compute it as::
 
-      (a * b) * b**2
+     (a * b) * b**2
 
-   if it sees some trivial optimization (even if it is no better than ``a *
-   (b * b**2)``.
+  if it sees some trivial optimization (even if it is no better than ``a *
+  (b * b**2)``.
 
-   For bit equivalence across compilers, wrap all exponents in parentheses.::
+  For bit equivalence across compilers, wrap all exponents in parentheses.::
 
-      a * (b**3)
+     a * (b**3)
 
 * Loop iterations were selected to produce double precision results.  These
   would need to be tuned for single or quadruple precision.
@@ -218,6 +218,25 @@ The overall structure is the same for all of these solutions.
   0.125.  It also causes ``cuberoot(0.125)`` to have an error in 1 ULP.
   Starting near 0.7 seems to fix this issue and significally reduce most errors
   around 0.125.
+
+Scaling
+-------
+
+* Some of the scaling and unscaling is simplified in double precision because
+  1023 is an exact multiple of 3.  This lets you ignore the bias in one or two
+  places.  This won't work in single precision, whose bias is 127.
+
+  However, I don't really like that I have to do all this bit manipulation, and
+  so I don't do those tricks anymore.
+
+* There is a *VERY ANNOYING* value, 1 - 0.5*ULP, because the root of this
+  number actually rounds up to 1, meaning that the [0.125,1) suddenly becomes
+  [0.125,1], and you cannot simply assume that the exponent of the scaled value
+  is -1.  There is literally one value for which it could be 0.
+
+  I deal with this by reading and then adding it to the scaled cube root
+  exponent.  But wow, what a ridiculous correction.  There is probably a faster
+  way to account for it.
 
 
 Summary

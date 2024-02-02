@@ -51,44 +51,45 @@ end function cuberoot_newton_quad
 
 
 !> Rescale `a` to the range [0.125, 1) and compute its cube-root exponent.
-pure subroutine rescale_cbrt(a, x, e_c, s_a)
+pure subroutine rescale_cbrt(a, x, e_r, s_a)
   real, intent(in) :: a
     !< The real parameter to be rescaled for cube root
   real, intent(out) :: x
-    !< The rescaled value of `a`
-  integer(kind=int64), intent(out) :: e_c
-    !< The cuberoot-exponent of `a`
+    !< The rescaled value of a
+  integer(kind=int64), intent(out) :: e_r
+    !< Cube root of the exponent of the rescaling of `a`
   integer(kind=int64), intent(out) :: s_a
-    !< The sign bit of `a`
+    !< The sign bit of a
 
   integer(kind=int64) :: xb
-    ! Floating point value of `a`, bit-packed as an integer
+    ! Floating point value of a, bit-packed as an integer
   integer(kind=int64) :: e_a
-    ! Unscaled exponent of `a`
+    ! Unscaled exponent of a
   integer(kind=int64) :: e_x
-    ! Exponent of `x` (i.e. exponent of `a` after rescaling)
+    ! Exponent of x
   integer(kind=int64) :: e_div, e_mod
-    ! Quotient and remainder of `e = 3*(e/3) + e % 3`.
+    ! Quotient and remainder of e in e = 3*(e/3) + modulo(e,3).
 
-  ! Pack bits of `a` into `xb` and extract its exponent and sign.
+  ! Pack bits of a into xb and extract its exponent and sign.
   xb = transfer(a, 1_int64)
   s_a = ibits(xb, signbit, 1)
   e_a = ibits(xb, expbit, explen) - bias
 
-  ! Decompose the exponent as `e = 3*(e//3) + modulo(e,3)`.
-  ! Fortran division is round-to-zero so we must reconstruct integer divison.
-  e_mod = modulo(e_a, 3)
+  ! Compute terms of exponent decomposition e = 3*(e/3) + modulo(e,3).
+  ! (Fortran division is round-to-zero, so we must emulate floor division.)
+  e_mod = modulo(e_a, 3_int64)
   e_div = (e_a - e_mod)/3
 
-  ! 1. Compute the exponent of final cube root of `a`.
-  !   * `e = e_a/3 + 1 + cbrt(e_x)` but `cbrt(x)` exponent is always -1.
-  e_c = (e_div + 1) - 1
+  ! Our scaling decomposes e_a into e = {3*(e/3) + 3} + {modulo(e,3) - 3}.
 
-  ! 2. Construct the rescaled exponent, shifted to [0.125, 1).
+  ! The first term is a perfect cube, whose cube root is computed below.
+  e_r = e_div + 1
+
+  ! The second term ensures that x is shifted to [0.125, 1).
   e_x = e_mod - 3
 
-  ! Insert the new 11-bit exponent into `xb` and write to `x`, extending the
-  ! bitcount to 12, so that the sign bit is zero and `xb` is always positive.
+  ! Insert the new 11-bit exponent into xb and write to x and extend the
+  ! bitcount to 12, so that the sign bit is zero and x is always positive.
   call mvbits(e_x + bias, 0, explen + 1, xb, fraclen)
   x = transfer(xb, 1.)
 end subroutine rescale_cbrt
@@ -107,10 +108,13 @@ pure function descale(x, e_a, s_a) result(a)
 
   integer(kind=int64) :: xb
     ! Bit-packed real number into integer form
+  integer(kind=int64) :: e_x
+    ! Biased exponent of x
 
-  ! Apply the corrected exponent and sign to `x`.
+  ! Apply the corrected exponent and sign to x.
   xb = transfer(x, 1_8)
-  call mvbits(e_a + bias, 0, explen, xb, expbit)
+  e_x = ibits(xb, expbit, explen)
+  call mvbits(e_a + e_x, 0, explen, xb, expbit)
   call mvbits(s_a, 0, 1, xb, signbit)
   a = transfer(xb, 1.)
 end function descale
