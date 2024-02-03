@@ -6,73 +6,94 @@ Floating point Algebra
 library.  Nothing innovative here from me...)
 
 
-Exponential form
-----------------
+Base Exponential form
+=====================
 
-First define the fractional part of a real number :math:`a`.
+First define the fractional part of a real number :math:`a` as
 
 .. math::
 
-   \text{frac} \ a \equiv a - \lfloor a \rfloor \in [0,1)
+   \text{frac} \ a \equiv a - \lfloor a \rfloor \in [0,1).
 
 The fractional part is truly fractional and is always less than one, and it is
 zero when there is no fractional part.
 
-Next consider a fairly common operation, :math:`\lfloor \log_2 a \rfloor`.
-This tells you which power of two bounds :math:`a` from below.  For example,
-:math:`\lfloor \log_2 15.5 \rfloor` is 3, since it is bounded by :math:`2^3`
-and :math:`2^4`.  The lost part of :math:`a` is the part which cannot be
-expressed as a power of 2, and behaves as a "fraction" with respect to this
-factor.
+Next, consider the term :math:`\lfloor \log_2 a \rfloor`, which tells you the
+power-of-two bound of :math:`a` from below.  For example, :math:`\lfloor \log_2
+15.5 \rfloor` is 3, since it is bounded by :math:`2^3` and :math:`2^4`.  The
+remaining bit of :math:`a` is the part which cannot be expressed as a power of
+two, and behaves as a "fraction" with respect to this factor.
 
-So :math:`a` can be written (perhaps somewhat dubiously) in terms of this new
-exponent:  
+Using these two operators, we hope to define :math:`a` in terms of a
+representative exponent and a fractional correction which returns :math:`a`.
+Begin with the following decomposition.
 
 .. math::
 
    a = 2^{\log_2 a} = 2^{\lfloor \log_2 a \rfloor}
-      \left( 2^{-\lfloor \log_2 a \rfloor} a \right)
+      2^{\text{frac} \left( \log_2 a \right)}.
 
-:math:`2^{-\lfloor \log_2 a \rfloor} a` quantifies the degree of
-proportionality between :math:`2^{\lfloor \log_2 a \rfloor}` and
-:math:`2^{\lfloor \log_2 a \rfloor + 1}`.  To see this more explicitly,
-consider the fractional part of :math:`2^{-\lfloor \log_2 a \rfloor} a`.
+Next, split the fractional correction as
 
 .. math::
 
-   \text{frac} \left( 2^{-\lfloor \log_2 a \rfloor} a \right)
-     = 2^{-\lfloor \log_2 a \rfloor} a
-      - \lfloor{ 2^{-\lfloor \log_2 a \rfloor} a \rfloor}
+   a = 2^{\lfloor \log_2 a \rfloor} \left(
+       \lfloor 2^{\text{frac} \left( \log_2 a \right)} \rfloor
+       + \text{frac} \left(
+          2^{\text{frac} \left( \log_2 a \right)}
+       \right)
+     \right).
 
-     = 2^{-\lfloor \log_2 a \rfloor} a
-      - \lfloor{ 2^{\log_2 a - \lfloor \log_2 a \rfloor} \rfloor}
-
-In the second term, the exponent of 2 is bounded by :math:`[0,1)`, meaning that
-the term as a whole must be bounded from below by 1 and must be less than 2.
-Therefore, the second term must be equal to 1.  From this, we can write the
-following identity.
+Since :math:`\text{frac}(\ldots) \in [0,1)`, the first term is always one, and
 
 .. math::
 
-   2^{-\lfloor \log_2 a \rfloor} = 1
-      + \text{frac} \left( 2^{-\lfloor \log_2 a \rfloor} \right)
+   a = 2^{\lfloor \log_2 a \rfloor} \left( 1 
+       + \text{frac} \left(
+          2^{\text{frac} \left( \log_2 a \right)}
+       \right)
+     \right).
 
-and bringing it all together,
+The final term can be written as
 
 .. math::
 
-   a = 2^{\lfloor \log_2 a \rfloor}
-      \left( 1 + \text{frac} \ 2^{-\lfloor \log_2 a \rfloor} \right)
+   \text{frac} \left( 2^{\text{frac}(\log_2 a)} \right)
+   & = \text{frac} \left( 2^{\log_2 a - \lfloor \log_2 a \rfloor} \right) \\
+   & = \text{frac} \left( 2^{-\lfloor \log_2 a \rfloor} a \right). \\
+
+This form makes explicit that the fractional term is the value of :math:`a`
+after it has been rescaled by :math:`2^{-\lfloor \log_2 a \rfloor}`, so that it
+is between :math:`2^{\lfloor \log_2 a \rfloor}` and :math:`2^{\lfloor \log_2 a
+\rfloor + 1}`.
+
+If one wishes to remove the frac operator entirely, then expand the frac
+operator as
+
+.. math::
+
+   \text{frac} \left( 2^{-\lfloor \log_2 a \rfloor} \right)
+      & = 2^{-\lfloor \log_2 a \rfloor} a
+         - \lfloor 2^{-\lfloor \log_2 a \rfloor} a \rfloor \\
+      & = 2^{-\lfloor \log_2 a \rfloor} a - 1 \\
+         
+
+Bringing it all together, we can write any real number :math:`a` as
+
+.. math::
+
+   a &= 2^{\lfloor \log_2 a \rfloor}
+      \left( 1 + \text{frac} \ 2^{-\lfloor \log_2 a \rfloor} \right) \\
+     &= 2^{\lfloor \log_2 a \rfloor}
+      \left( 1 + \left( 2^{-\lfloor \log_2 a \rfloor} a - 1 \right) \right) \\
 
 which is the standard form of a modern floating point number.
 
-None of these identities are particularly profound; any one of them could
-probably have been written down after a little thought.  The real purpose of
-writing all these down is to show that there is a kind of algebraic process by
-which one can derive such expressions.  It is also an attempt (for me at least)
-to become a bit more comfortable with the exponential decomposition.
+(Although the second form is mostly a tautology, I feel like there is still some
+value here in showing how to algebraically working towards a result.  Maybe
+there's a more intuitive way to get to this result.)
 
-Also, this does not yet represent an actual floating point number, only the
+This does not yet represent an actual floating point number, but only the
 general exponential decomposition used by such numbers.  The actual "floating"
 comes about after one considers the change in fractional terms in response to
 changing exponents.  This is when floating point analysis becomes more

@@ -74,7 +74,6 @@ pure subroutine rescale_cbrt(a, x, e_r, s_a)
   xb = transfer(a, 1_int64)
   s_a = ibits(xb, signbit, 1)
   e_a = ibits(xb, expbit, explen) - bias
-
   ! Compute terms of exponent decomposition e = 3*(e/3) + modulo(e,3).
   ! (Fortran division is round-to-zero, so we must emulate floor division.)
   e_mod = modulo(e_a, 3_int64)
@@ -337,4 +336,20 @@ elemental function cuberoot_lagny(a) result(r)
 end function cuberoot_lagny
 
 
+elemental function cuberoot_eggrobin(a) result(r)
+  real, intent(in) :: a
+  real :: r
+
+  if (a == 0.) then
+    r = a
+  else
+    call rescale_cbrt(a, x, e_a, s_a)
+
+    ! A Kahan-like initial guess (accurate with 3% ?)
+    G = 0.10096781215580288
+
+
+
+    r = descale(r, e_a, s_a)
+  endif
 end
