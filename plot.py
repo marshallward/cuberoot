@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 lw = 0.1
+#lw = 1.
 plot_fma = False
 
 data_quad = np.loadtxt('err_quad.txt')
@@ -15,6 +16,8 @@ for row in axes:
     row[0].set_ylim(0, 1.1e-16)
     #row[0].set_ylim(0, 4.4e-16)
     #row[0].set_ylim(0., 8.8e-16)
+    row[1].set_ylim(0, 6e-16)
+
 
     for ax in row:
         ax.set_xlim(0.125, 1.0)

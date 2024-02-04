@@ -303,7 +303,7 @@ end function cuberoot_halley_nodiv
 
 ! Used in the Principia project, but so far seems no better than the others.
 ! I may be missing something.
-elemental function cuberoot_lagny(a) result(r)
+elemental function cuberoot_lagny_old(a) result(r)
   real, intent(in) :: a
   real :: r
 
@@ -333,23 +333,98 @@ elemental function cuberoot_lagny(a) result(r)
 
     r = descale(r, e_a, s_a)
   endif
-end function cuberoot_lagny
+end function cuberoot_lagny_old
 
 
-elemental function cuberoot_eggrobin(a) result(r)
+elemental function cuberoot_lagny(a) result(r)
   real, intent(in) :: a
   real :: r
+
+  real, parameter :: G = 0.10096781215580288
+
+  ! The actual parameters are tweaked... not sure why
+  real, parameter :: la = sqrt(3.)
+  real, parameter :: lb = 4.
+  real, parameter :: lc = 1./sqrt(12.)
+
+  real :: x
+  integer(int64) :: e_a, s_a
+  real :: r2, r3, r4, x2, x3
+  real :: num, den, dr
+  integer :: i
+
+  ! Bit correction
+  real :: r0, r1, rt
+  logical :: may_correct
+  real :: cb_a, cb_b
+  ! From 0x1.7C73DBBD9FA60p-66
+  real, parameter :: tau = 2.0140991445038357E-020
 
   if (a == 0.) then
     r = a
   else
     call rescale_cbrt(a, x, e_a, s_a)
 
-    ! A Kahan-like initial guess (accurate with 3% ?)
-    G = 0.10096781215580288
+    x2 = x*x
+    x3 = x2*x
 
+    !! TODO: Use Kahan estimate?  Is this OK?
+    r = (2.*(s**3) + x) / (3.*(s**2))
 
+    ! The turn out to be *TERRIBLE*.  Would like to see how Kahan or Leroy
+    ! stating values fare...
+    !r = (2. + x) / 3.
+    !r = 1
+
+    ! Lagny's irrational method
+    r2 = r * r
+    r4 = r2 * r2
+    r = (la * r2 + sqrt(lb * x * r - r4)) * (lc / r)
+
+    ! TODO: Round to 17 bits?
+
+    ! Fifth order Lagny-Schröder
+    r2 = r*r
+    r3 = r2*r
+    num = (r3 - x)*((((10.*r3) + 16.*x)*r3) + x2)
+    den = r2*((((15.*r3) + (51.*x))*r3) + (15*(x2)))
+
+    r = r - num / den
+
+    ! Fifth order Lagny-Schröder
+    r2 = r*r
+    r3 = r2*r
+    num = (r3 - x)*((((10.*r3) + 16.*x)*r3) + x2)
+    den = r2*((((15.*r3) + (51.*x))*r3) + (15*(x2)))
+
+    !r = r - num / den
+
+    ! Does not work...
+    dr = num/den
+
+    ! Correct the bit?
+    r0 = r - dr
+    r1 = r - r0 - dr
+    rt = r0 + 2*r1
+
+    ! (First check... dont really get that yet)
+    may_correct = (abs(0.5*(rt - r0) - r1) <= tau * r0) .and. (rt /= r0)
+
+    ! (Then fix the bit if needed)
+    if (may_correct) then
+      cb_a = min(r0, rt)
+      cb_b = 0.5 * abs(r0 - rt)
+      ! Replace with CbrtOneBit...
+      if (.true.) then
+        r = max(r0, rt)
+      else
+        r = r0
+      endif
+    else
+      r = max(r0, rt)
+    endif
 
     r = descale(r, e_a, s_a)
   endif
+end function cuberoot_lagny
 end
