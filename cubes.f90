@@ -496,4 +496,80 @@ elemental function cbrt_ac(a) result(r)
   r = real(r_c, kind=real64)
 end function cbrt_ac
 
+
+! Carbon copy of cbrt_ac (I hope...)
+!
+! This is literally just a Fortran implementation of this amazing solver which
+! was posted on Stack Overflow.  (Or at least that's the plan.)
+!
+! Someday I hope this semi-anonymous person receives the proper accolades, but
+! for now please see the citations below.
+!
+! URL:  https://stackoverflow.com/a/73354137/317172
+! User: https://stackoverflow.com/users/2439725/wim
+!
+elemental function cuberoot_final(a) result(r)
+  real, intent(in) :: a
+  real :: r
+
+  real :: x
+  integer(int64) :: e_a, s_a, xb
+  integer :: i
+
+  real :: q
+  real :: xqq, q2, r2, r2_h, r2_l
+
+  if (a == 0.) then
+    r = a
+  else
+    ! cbrt_ac does not do a full rescale, just one 0.125 rescale.  How does it
+    ! get away with this??
+
+    ! Rescale to 0.125 < x < 1
+    call rescale_cbrt(a, x, e_a, s_a)
+
+    ! Solve for a**(2./3.), then transform to a**(1./3.)
+
+    ! Initialize with fancy integer tricks.  Come back to this!
+    q = 1.0
+
+    ! Newton iteration of f(q) = q**2 - x**(-3)
+    xqq = (x * q) * q
+    q = q + (1./3.) * (xqq * (-xqq) + q)
+
+    ! Repeat, with an altered coefficient (?)
+    xqq = (x * q) * q
+    q = q + 0.33523333333 * (xqq * (-xqq) + q)
+
+    ! Repeat
+    xqq = (x * q) * q
+    q = q + (1./3.) * (xqq * (-xqq) + q)
+
+    ! Now we use q = x**(-2/3) to solve for x**(1/3).
+    ! The product of r is our estimate of x**(1/3).
+    r = q * x
+
+    ! Solve for f(r) = r - x**3, again using Newton iteration, but approximate
+    ! f(r)/f'(r) = (x - r**3)/(3*r2) as q*(1/3)*(x - r**3).
+    ! Why?  r ~= x**(1/3) and q ~= x**(-2/3), so 1/r**2 ~= q.
+
+    ! We want to maximize the residual in x - r**3, so split r**2 = r2_l + r2_h
+    ! to preserve the FMA residual if available.
+    r2_h = r * r
+    r2_l = r * r - r2_h
+
+    r = r + q * (1./3.) * (-r * r2_h + (-r * r2_h + x))
+
+    ! Author says r approximates x**(1/3) within 0.50002 ULP.
+    ! Time to finish the job!
+
+    ! Apply one final Halley iteration to reduce it below 0.5 ULP.
+
+
+
+    ! Unscale and apply cuberoot to exponent
+    r = descale(r, e_a, s_a)
+  endif
+end function cuberoot_final
+
 end
