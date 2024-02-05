@@ -1,7 +1,9 @@
 module cubes
 
-use iso_fortran_env, only : int64
-use iso_fortran_env, only : real128
+use, intrinsic :: iso_fortran_env, only : int64
+use, intrinsic :: iso_fortran_env, only : real64, real128
+
+use, intrinsic :: iso_c_binding, only : c_double
 
 implicit none
 
@@ -26,6 +28,15 @@ integer, parameter :: expbit = signbit - explen
   !< Position of lowest exponent bit
 integer, parameter :: fraclen = expbit
   !< Length of fractional part
+
+interface
+  pure function cbrt_ac_c(a) result(r) bind(c, name="cbrt_ac")
+    import :: c_double
+
+    real(kind=c_double), value, intent(in) :: a
+    real(kind=c_double) :: r
+  end function cbrt_ac_c
+end interface
 
 contains
 
@@ -417,7 +428,7 @@ elemental function cuberoot_lagny(a) result(r)
     ! (This is really important btw!!  Not sure why yet...)
     xb = transfer(r, 1_int64)
     xb = iand(xb, z'fffffff000000000')
-    r = transfer(xb, 1._8)
+    r = transfer(xb, 1._real64)
 
     ! Fifth order Lagny-Schröder
     r2 = r*r
@@ -429,7 +440,7 @@ elemental function cuberoot_lagny(a) result(r)
 
     r = r - dr
 
-    !! This is supposed to fix the final bit, but currently does not work...
+    !! This is supposed to fix the final bit, but currently does not work.
 
     !! Correct the bit?
     !r0 = r - dr
@@ -444,10 +455,11 @@ elemental function cuberoot_lagny(a) result(r)
     !  cb_a = min(r0, rt)
     !  cb_b = 0.5 * abs(r0 - rt)
     !  ! Replace with CbrtOneBit...
-    !  if (.true.) then
+    !  do_correct = cbrt_one_bit(x, cb_a, cb_b)
+    !  if (do_correct) then
     !    r = max(r0, rt)
     !  else
-    !    r = r0
+    !    r = min(r0, rt)
     !  endif
     !else
     !  r = r0
@@ -456,4 +468,32 @@ elemental function cuberoot_lagny(a) result(r)
     r = descale(r, e_a, s_a)
   endif
 end function cuberoot_lagny
+
+pure function cbrt_one_bit(x, a, b) result(do_correct)
+  real, intent(in) :: x
+  real, intent(in) :: a
+  real, intent(in) :: b
+  logical :: do_correct
+
+  ! This is supposed to be a rather lengthy function which sweeps through and
+  ! does bit-for-bit calculation up to the 54th bit.  But I am nowhere near
+  ! ready to try and implement something like this.
+
+  do_correct = .false.
+end function cbrt_one_bit
+
+!----
+
+elemental function cbrt_ac(a) result(r)
+  real, intent(in) :: a
+  real :: r
+
+  real(kind=c_double) :: a_c
+  real(kind=c_double) :: r_c
+
+  a_c = real(a, kind=c_double)
+  r_c = cbrt_ac_c(a_c)
+  r = real(r_c, kind=real64)
+end function cbrt_ac
+
 end
