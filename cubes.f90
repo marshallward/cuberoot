@@ -527,15 +527,15 @@ elemental function cuberoot_final(a) result(r)
     ! get away with this??
 
     ! Rescale to 0.125 < x < 1
-    !call rescale_cbrt(a, x, e_a, s_a)
+    call rescale_cbrt(a, x, e_a, s_a)
+    !x = a
 
-    ! Solve for a**(2./3.), then transform to a**(1./3.)
+    ! Solve for a**(-2./3.), then transform to a**(1./3.)
 
     ! Initialize with fancy integer tricks.
     ! TODO: Needs explanation
     xb = transfer(x, 1_int64)
-    xb = 2 * (xb/3)
-    xb = int(z'6A8EB53800000000', int64) - xb
+    xb = int(z'6A8EB53800000000', int64) - 2 * (xb / 3)
     q = transfer(xb, 1._real64)
 
     ! Newton iteration of f(q) = q**2 - x**(-3)
@@ -569,16 +569,16 @@ elemental function cuberoot_final(a) result(r)
     ! Author says r approximates x**(1/3) within 0.50002 ULP.
     ! Time to finish the job!
 
-    ! Apply one final Halley iteration to reduce it below 0.5 ULP.
-    r2_h = r*r
-    r2_l = r*r - r2_h
+    !! Apply one final Halley iteration to reduce it below 0.5 ULP.
+    !r2_h = r*r
+    !r2_l = r*r - r2_h
 
-    num = -r * r2_l + (-r * r2_h + a)
-    den = 3. * a - 2.*num
-    r = r + r * num / den
+    !num = -r * r2_l + (-r * r2_h + a)
+    !den = 3. * a - 2.*num
+    !r = r + r * num / den
 
     ! Unscale and apply cuberoot to exponent
-    !r = descale(r, e_a, s_a)
+    r = descale(r, e_a, s_a)
   endif
 end function cuberoot_final
 

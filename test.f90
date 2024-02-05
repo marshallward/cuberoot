@@ -28,4 +28,8 @@ do i = 1,size(y)
       cuberoot_final(x)
 end do
 
+print *, "0.25**(1/3): ", cuberoot_final(0.25)
+print *, "0.5**(1/3): ", cuberoot_final(0.5)
+print *, "0.75**(1/3): ", cuberoot_final(0.75)
+
 end
