@@ -13,6 +13,7 @@ fig, axes = plt.subplots(6,2, figsize=(12,10), sharex=True)
 fig.suptitle('Errors of each cubic solver.\nQuad error <--> Relative error')
 
 for row in axes:
+    #row[0].set_ylim(0, 1.5e-16)
     row[0].set_ylim(0, 1.1e-16)
     #row[0].set_ylim(0, 4.4e-16)
     #row[0].set_ylim(0., 8.8e-16)
@@ -21,9 +22,7 @@ for row in axes:
 
     for ax in row:
         ax.set_xlim(0.125, 1.0)
-
-#fig.suptitle("Error (with respect to 128-bit precision Newton)")
-#fig.suptitle("Relative Errors ((x**1/3)**3 - x) / x")
+        #ax.set_xlim(0.125, 0.13)
 
 axes[0,0].set_title("x**(1./3.)")
 axes[0,0].plot(data_quad[:,0], data_quad[:,2], linewidth=lw)

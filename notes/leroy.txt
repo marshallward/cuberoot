@@ -1,0 +1,4 @@
+Notes for paper:
+
+* page 8:
+  hex for Γ_Kahan needs a 2^-4 (or p-3) on the end!

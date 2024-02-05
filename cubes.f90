@@ -125,7 +125,7 @@ elemental function cuberoot_newton(a) result(r)
   real :: r
 
   real :: x
-  integer(int64) :: e_a, s_a
+  integer(int64) :: e_a, s_a, xb
   integer :: i
 
   if (a == 0.) then
@@ -154,7 +154,7 @@ elemental function cuberoot_halley(a) result(r)
   real :: r
 
   real :: x
-  integer(int64) :: e_a, s_a
+  integer(int64) :: e_a, s_a, xb
   integer :: i
 
   if (a == 0.) then
@@ -165,6 +165,12 @@ elemental function cuberoot_halley(a) result(r)
 
     ! Implicit initialization of r = s followed by one Halley iteration
     r = s * (s**3 + 2. * x) / (2.*(s**3) + x)
+
+    ! Round the result to 17-bits (Principia says 17, but is it not 16 bits?)
+    ! (This is really important btw!!  Not sure why yet...)
+    xb = transfer(r, 1_int64)
+    xb = iand(xb, z'fffffff000000000')
+    r = transfer(xb, 1._8)
 
     ! This simplified form is faster than r = r - 2 f f' / (2f'*f' - f f'')
     do i = 1, 2
@@ -342,10 +348,16 @@ elemental function cuberoot_lagny(a) result(r)
 
   real, parameter :: G = 0.10096781215580288
 
-  ! The actual parameters are tweaked... not sure why
+  ! The actual parameters in the formula; not used in Principia
   real, parameter :: la = sqrt(3.)
   real, parameter :: lb = 4.
   real, parameter :: lc = 1./sqrt(12.)
+
+  !! Steve Canon's optimized corrections?
+  !! These do not seem to even converge... am I using them incorrectly?
+  !real, parameter :: la = 1.7329127602084620
+  !real, parameter :: lb = 4.0029873779316976
+  !real, parameter :: lc = 0.23020325578115797
 
   real :: x
   integer(int64) :: e_a, s_a
@@ -353,12 +365,17 @@ elemental function cuberoot_lagny(a) result(r)
   real :: num, den, dr
   integer :: i
 
+  integer(int64) :: xb
+
+  ! Kahan initialization
+  integer(int64) :: Yb, Cb, Qb
+
   ! Bit correction
   real :: r0, r1, rt
-  logical :: may_correct
+  logical :: may_correct, do_correct
   real :: cb_a, cb_b
   ! From 0x1.7C73DBBD9FA60p-66
-  real, parameter :: tau = 2.0140991445038357E-020
+  real, parameter :: tau = 2.0140991445038357E-20
 
   if (a == 0.) then
     r = a
@@ -368,20 +385,39 @@ elemental function cuberoot_lagny(a) result(r)
     x2 = x*x
     x3 = x2*x
 
-    !! TODO: Use Kahan estimate?  Is this OK?
+    ! Use s=0.7 Halley estimate for now
     r = (2.*(s**3) + x) / (3.*(s**2))
 
-    ! The turn out to be *TERRIBLE*.  Would like to see how Kahan or Leroy
-    ! stating values fare...
+    !!! TODO: Use Kahan estimate?  Is this OK?
+
+    ! So AFAIK, the Kahan estimate is about the [eta,8*eta) range, and the
+    ! optimal range is something like 0.1009...  But we do [0.125,1) so
+    ! I am probably overthinking the whole thing.
+
+    ! The follow turn out to be *TERRIBLE*.  Would like to see how Kahan or
+    ! Canon stating values fare...
     !r = (2. + x) / 3.
     !r = 1
 
-    ! Lagny's irrational method
+    ! 2. Lagny's irrational method
     r2 = r * r
     r4 = r2 * r2
     r = (la * r2 + sqrt(lb * x * r - r4)) * (lc / r)
 
-    ! TODO: Round to 17 bits?
+    !! This can replace the Lagny iteration.  It is more accurate, but a bit
+    !! slower.  The same effect can be obtained by 2 Lagny irrational
+    !! iterations.  Mostly this fixed up problem near x=1.
+    !do i=1,2
+    !r = r * (r**3 + 2.*x) / (2.*(r**3) + x)
+    !enddo
+
+    ! Point being: There may be some opportunity to speedup the first stage.
+
+    ! 3. Round the result to "17 bits" (Principia says 17, but looks like 16?)
+    ! (This is really important btw!!  Not sure why yet...)
+    xb = transfer(r, 1_int64)
+    xb = iand(xb, z'fffffff000000000')
+    r = transfer(xb, 1._8)
 
     ! Fifth order Lagny-Schröder
     r2 = r*r
@@ -389,40 +425,33 @@ elemental function cuberoot_lagny(a) result(r)
     num = (r3 - x)*((((10.*r3) + 16.*x)*r3) + x2)
     den = r2*((((15.*r3) + (51.*x))*r3) + (15*(x2)))
 
-    r = r - num / den
-
-    ! Fifth order Lagny-Schröder
-    r2 = r*r
-    r3 = r2*r
-    num = (r3 - x)*((((10.*r3) + 16.*x)*r3) + x2)
-    den = r2*((((15.*r3) + (51.*x))*r3) + (15*(x2)))
-
-    !r = r - num / den
-
-    ! Does not work...
     dr = num/den
 
-    ! Correct the bit?
-    r0 = r - dr
-    r1 = r - r0 - dr
-    rt = r0 + 2*r1
+    r = r - dr
 
-    ! (First check... dont really get that yet)
-    may_correct = (abs(0.5*(rt - r0) - r1) <= tau * r0) .and. (rt /= r0)
+    !! This is supposed to fix the final bit, but currently does not work...
 
-    ! (Then fix the bit if needed)
-    if (may_correct) then
-      cb_a = min(r0, rt)
-      cb_b = 0.5 * abs(r0 - rt)
-      ! Replace with CbrtOneBit...
-      if (.true.) then
-        r = max(r0, rt)
-      else
-        r = r0
-      endif
-    else
-      r = max(r0, rt)
-    endif
+    !! Correct the bit?
+    !r0 = r - dr
+    !r1 = r - r0 - dr
+    !rt = r0 + 2*r1
+
+    !! (First check... dont really get that yet)
+    !may_correct = (abs(0.5*(rt - r0) - r1) <= tau * r0) .and. (rt /= r0)
+
+    !! (Then fix the bit if needed)
+    !if (may_correct) then
+    !  cb_a = min(r0, rt)
+    !  cb_b = 0.5 * abs(r0 - rt)
+    !  ! Replace with CbrtOneBit...
+    !  if (.true.) then
+    !    r = max(r0, rt)
+    !  else
+    !    r = r0
+    !  endif
+    !else
+    !  r = r0
+    !endif
 
     r = descale(r, e_a, s_a)
   endif
