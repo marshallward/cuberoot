@@ -53,7 +53,7 @@ elemental function cuberoot_newton_quad(x) result(root)
     root = 0.
   else
     root = 1._real128
-    do i = 1, 6
+    do i = 1, 20
       r = root
       root = ((2._real128)*r**3 + x) / ((3._real128)*r**2)
     enddo

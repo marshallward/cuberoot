@@ -76,4 +76,12 @@ end do
 call system_clock(count=c2)
 print *, "Lagny:", (c2 - c1) / clock_rate / niter
 
+r = cbrt_ac(x)
+call system_clock(count=c1)
+do i = 1, niter
+  r = cbrt_ac(x)
+end do
+call system_clock(count=c2)
+print *, "AC:", (c2 - c1) / clock_rate / niter
+
 end

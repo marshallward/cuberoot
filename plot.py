@@ -9,7 +9,7 @@ data_quad = np.loadtxt('err_quad.txt')
 data_rel = np.loadtxt('err_root_rel.txt')
 
 
-fig, axes = plt.subplots(6,2, figsize=(12,10), sharex=True)
+fig, axes = plt.subplots(7,2, figsize=(12,12), sharex=True)
 fig.suptitle('Errors of each cubic solver.\nQuad error <--> Relative error')
 
 for row in axes:
@@ -17,7 +17,8 @@ for row in axes:
     row[0].set_ylim(0, 1.1e-16)
     #row[0].set_ylim(0, 4.4e-16)
     #row[0].set_ylim(0., 8.8e-16)
-    row[1].set_ylim(0, 6e-16)
+    #row[1].set_ylim(0, 6e-16)
+    #row[0].set_ylim(0, 2e-15)
 
 
     for ax in row:
@@ -44,15 +45,19 @@ axes[4,0].set_title("No-div Halley")
 axes[4,0].plot(data_quad[:,0], data_quad[:,6], linewidth=lw)
 axes[4,1].plot(data_rel[:,0], data_rel[:,6], linewidth=lw)
 
-axes[5,0].set_title("Lagny (?)")
+axes[5,0].set_title("Leroy (incomplete)")
 axes[5,0].plot(data_quad[:,0], data_quad[:,7], linewidth=lw)
 axes[5,1].plot(data_rel[:,0], data_rel[:,7], linewidth=lw)
 
+axes[6,0].set_title("AC")
+axes[6,0].plot(data_quad[:,0], data_quad[:,8], linewidth=lw)
+axes[6,1].plot(data_rel[:,0], data_rel[:,8], linewidth=lw)
 
-for row in axes:
-    for ax in row:
-        for k in [-51, -52, -53, -54]:
-            ax.axhline(2**k, linestyle="--", color='k', linewidth=0.5)
+
+#for row in axes:
+#    for ax in row:
+#        for k in [-51, -52, -53, -54]:
+#            ax.axhline(2**k, linestyle="--", color='k', linewidth=0.5)
 
 plt.subplots_adjust(hspace=0.6)
 

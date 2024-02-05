@@ -16,11 +16,14 @@ integer :: io_unit
 k = 17
 n = 1 + 7 * 2**(k-3)
 allocate(x(n))
-allocate(nbits(6))
-
 x = [(i*2.**-k, i=2**(k-3), 2**k)]
 
+!n = 1+10**7
+!allocate(x(n))
+!x = [(i*1e-3, i=0,n)]
+
 !print '(*(a26))', "x", "Quad Newton", "x**(1./3.)", "Double Newton", "Newton No-div"
+allocate(nbits(7))
 nbits(:) = 0
 
 ! Absolute error with respect to a *rounded* quadratic precision number.
@@ -37,7 +40,8 @@ do i = 1,n
     real(abs(cuberoot_newton_nodiv(x(i)) - q), kind=real64), &
     real(abs(cuberoot_halley(x(i)) - q), kind=real64), &
     real(abs(cuberoot_halley_nodiv(x(i)) - q), kind=real64), &
-    real(abs(cuberoot_lagny(x(i)) - q), kind=real64)
+    real(abs(cuberoot_lagny(x(i)) - q), kind=real64), &
+    real(abs(cbrt_ac(x(i)) - q), kind=real64)
 
   ! Count the total error (to be converted into bits)
   nbits(1) = nbits(1) + abs(x(i)**(1./3.) - real(q))
@@ -46,12 +50,13 @@ do i = 1,n
   nbits(4) = nbits(4) + abs(cuberoot_halley(x(i)) - real(q))
   nbits(5) = nbits(5) + abs(cuberoot_halley_nodiv(x(i)) - real(q))
   nbits(6) = nbits(6) + abs(cuberoot_lagny(x(i)) - real(q))
+  nbits(7) = nbits(7) + abs(cbrt_ac(x(i)) - real(q))
 enddo
 
 ! Divide by the ULP error (more or less)
 print *, "Total ULP errors (...?)"
 print '(*(a14))', "x**(1./3.)", "Newton", "Newton Nodiv", "Halley", &
-    "Halley Nodiv", "Lagny/Leroy"
+    "Halley Nodiv", "Lagny/Leroy", "AC"
 print '(*(i14))', int(nbits(:) / 1.1102230246251565E-16)
 
 close(io_unit)
@@ -65,12 +70,13 @@ do i = 1,n
     x(i), &
     real(q, kind=real64), &
 
-    abs((x(i)**(1./3.))**3 - x(i))/x(i), &
-    abs(cuberoot_newton(x(i))**3 - x(i))/x(i), &
-    abs(cuberoot_newton_nodiv(x(i))**3 - x(i))/x(i), &
-    abs(cuberoot_halley(x(i))**3 - x(i))/x(i), &
-    abs(cuberoot_halley_nodiv(x(i))**3 - x(i))/x(i), &
-    abs(cuberoot_lagny(x(i))**3 - x(i))/x(i)
+    abs((x(i)**(1./3.))**3 - x(i)), &
+    abs(cuberoot_newton(x(i))**3 - x(i)), &
+    abs(cuberoot_newton_nodiv(x(i))**3 - x(i)), &
+    abs(cuberoot_halley(x(i))**3 - x(i)), &
+    abs(cuberoot_halley_nodiv(x(i))**3 - x(i)), &
+    abs(cuberoot_lagny(x(i))**3 - x(i)), &
+    abs(cuberoot_lagny(x(i))**3 - x(i))
 enddo
 close(io_unit)
 
@@ -89,7 +95,8 @@ do i = 1,n
     abs(cuberoot_newton_nodiv(x(i))**3 - x(i))/x(i), &
     abs(cuberoot_halley(x(i))**3 - x(i))/x(i), &
     abs(cuberoot_halley_nodiv(x(i))**3 - x(i))/x(i), &
-    abs(cuberoot_lagny(x(i))**3 - x(i))/x(i)
+    abs(cuberoot_lagny(x(i))**3 - x(i))/x(i), &
+    abs(cbrt_ac(x(i))**3 - x(i))/x(i)
 enddo
 close(io_unit)
 
