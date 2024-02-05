@@ -24,7 +24,8 @@ do i = 1,size(y)
       cuberoot_newton_nodiv(x), &
       cuberoot_halley(x), &
       cuberoot_halley_nodiv(x), &
-      cuberoot_lagny(x)
+      cuberoot_lagny(x), &
+      cuberoot_final(x)
 end do
 
 end

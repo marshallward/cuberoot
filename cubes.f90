@@ -518,6 +518,7 @@ elemental function cuberoot_final(a) result(r)
 
   real :: q
   real :: xqq, q2, r2, r2_h, r2_l
+  real :: num, den
 
   if (a == 0.) then
     r = a
@@ -526,12 +527,16 @@ elemental function cuberoot_final(a) result(r)
     ! get away with this??
 
     ! Rescale to 0.125 < x < 1
-    call rescale_cbrt(a, x, e_a, s_a)
+    !call rescale_cbrt(a, x, e_a, s_a)
 
     ! Solve for a**(2./3.), then transform to a**(1./3.)
 
-    ! Initialize with fancy integer tricks.  Come back to this!
-    q = 1.0
+    ! Initialize with fancy integer tricks.
+    ! TODO: Needs explanation
+    xb = transfer(x, 1_int64)
+    xb = 2 * (xb/3)
+    xb = int(z'6A8EB53800000000', int64) - xb
+    q = transfer(xb, 1._real64)
 
     ! Newton iteration of f(q) = q**2 - x**(-3)
     xqq = (x * q) * q
@@ -545,30 +550,35 @@ elemental function cuberoot_final(a) result(r)
     xqq = (x * q) * q
     q = q + (1./3.) * (xqq * (-xqq) + q)
 
-    ! Now we use q = x**(-2/3) to solve for x**(1/3).
-    ! The product of r is our estimate of x**(1/3).
+    ! Now we use the q = x**(-2/3) estimate to solve for x**(1/3).
+    ! The product r is our estimate of x**(1/3).
     r = q * x
 
     ! Solve for f(r) = r - x**3, again using Newton iteration, but approximate
     ! f(r)/f'(r) = (x - r**3)/(3*r2) as q*(1/3)*(x - r**3).
-    ! Why?  r ~= x**(1/3) and q ~= x**(-2/3), so 1/r**2 ~= q.
+    ! (How?  r ~= x**(1/3) and q ~= x**(-2/3), so 1/r**2 ~= q.)
+    ! (Why?  I think it avoids a division...?)
 
     ! We want to maximize the residual in x - r**3, so split r**2 = r2_l + r2_h
     ! to preserve the FMA residual if available.
     r2_h = r * r
     r2_l = r * r - r2_h
 
-    r = r + q * (1./3.) * (-r * r2_h + (-r * r2_h + x))
+    r = r + q * (1./3.) * (-r * r2_l + (-r * r2_h + x))
 
     ! Author says r approximates x**(1/3) within 0.50002 ULP.
     ! Time to finish the job!
 
     ! Apply one final Halley iteration to reduce it below 0.5 ULP.
+    r2_h = r*r
+    r2_l = r*r - r2_h
 
-
+    num = -r * r2_l + (-r * r2_h + a)
+    den = 3. * a - 2.*num
+    r = r + r * num / den
 
     ! Unscale and apply cuberoot to exponent
-    r = descale(r, e_a, s_a)
+    !r = descale(r, e_a, s_a)
   endif
 end function cuberoot_final
 
