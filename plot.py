@@ -45,15 +45,15 @@ axes[4,0].set_title("No-div Halley")
 axes[4,0].plot(data_quad[:,0], data_quad[:,6], linewidth=lw)
 axes[4,1].plot(data_rel[:,0], data_rel[:,6], linewidth=lw)
 
-axes[5,0].set_title("Leroy (incomplete)")
+axes[5,0].set_title("Leroy (no bit correction)")
 axes[5,0].plot(data_quad[:,0], data_quad[:,7], linewidth=lw)
 axes[5,1].plot(data_rel[:,0], data_rel[:,7], linewidth=lw)
 
-axes[6,0].set_title("AC")
+axes[6,0].set_title("cbrt_ac")
 axes[6,0].plot(data_quad[:,0], data_quad[:,8], linewidth=lw)
 axes[6,1].plot(data_rel[:,0], data_rel[:,8], linewidth=lw)
 
-axes[7,0].set_title("final")
+axes[7,0].set_title("cbrt_ac in Fortran")
 axes[7,0].plot(data_quad[:,0], data_quad[:,9], linewidth=lw)
 axes[7,1].plot(data_rel[:,0], data_rel[:,9], linewidth=lw)
 

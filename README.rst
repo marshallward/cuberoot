@@ -3,6 +3,36 @@ Cube root solvers
 
 This repo contains several implementations of cube root solvers in Fortran.
 
+It is possible to get exactly-rounded numbers (to nearest), but it does require
+computing beyond the 52-bit limit.
+
+The ``cbrt_ac`` solution ripped from @wim at Stack Overflow seems uncannily
+good; as yet, there does not seem to be a single incorrectly rounded value.
+
+This is looking like a valid strategy:
+
+1. get to :math:`10^{-17}`.  (There is perhaps too much discussion on this
+   point...)
+
+2. Optionally "sweep" the bits of potential noise.  (Still looking at this
+   step.)
+
+3. Finalize with a "super-accurate" step.
+
+   a. ``cbrt_ac`` uses FMAs to compute residuals of ``r**2``.
+
+   b. Robin Leroy does a "spigot"-like method to compute additional bits.
+
+   Both methods acknowledge that 52-bits is not enough to get 52-bits of
+   accuracy.
+
+This is all very much a work in progress.  Just about every method has some
+sort of "fail" rate, and I haven't made any effort to determine it.
+
+When I started, I was more interested in performance of 1ULP accuracy, but I'm
+only just starting to investigate <0.5 ULP accuracy (i.e. "exact").
+
+
 Results
 =======
 
@@ -251,3 +281,69 @@ iteration.
 None of the methods were able to exactly produce results from quadratic
 precision, but all were equivalent within one ULP.  (Note that ``x**(1./3.)``
 was also only exact within one ULP).
+
+
+Acknowledgements
+================
+
+I am not taking credit for anything here; this arose from a need for version of
+``cbrt()`` which would satisfy
+
+.. math::
+
+   x = 2^{-N} \text{cbrt} ( 2^{3N} x)
+
+which itself comes from Hallberg's dimensional scaling tests in MOM6.
+
+The no-division methods were proposed by Hallberg.  The original versions had
+many convergence tests, which were shown to degrade performance.  I removed
+most of these, yielding significant speedups, with no loss in accuracy.
+
+I wrote up most of the "naive" solvers (4x Newton, 2x Halley, etc).  I ran most
+of the timings and accuracy tests to determine the optimal choices for
+iteration counts.
+
+Hallberg pointed out the importance of finalizing with an expression of the
+form
+
+.. math::
+
+   x = x + \Delta_x
+
+rather than a simplified algebraic form with may amplify the error near ULP.
+(This seems to also be an essential part of the ``cbrt_ac`` solution; see
+below.)  Hallberg initially proposed this in the Halley no-divison solver; I
+applied it all of the solvers, which reduced errors to <1 ULP.
+
+Hallberg noted the importance of testing the :math:`1 - 0.5 \text{ULP}` case.
+
+Solutions based on Lagny's rational polynomials with spigot bit-corrections
+come from method described by Robin Leroy in his draft paper:
+
+    https://github.com/mockingbirdnest/Principia/blob/master/documentation/cbrt.pdf
+
+as well as his implementation in the `Principia`_ orbital dynamics library for
+Kerbal Space Program:
+
+    https://github.com/mockingbirdnest/Principia/blob/master/numerics/cbrt.cpp
+
+.. _Principia: https://github.com/mockingbirdnest/Principia
+
+The ``cbrt_ac`` method combining bit-accurate division and square-root methods
+with a Halley solver comes from a proposed solver in Stack Overflow by user
+`@wim`_.
+
+   https://stackoverflow.com/a/73354137/317172
+
+.. _@wim: https://stackoverflow.com/users/2439725/wim
+
+Assuming this solution pans out, I hope that the author can be properly
+credited in the future.
+
+The solvers of Leroy and @wim both initialize with integer-based methods
+similar to the infamous "inverse square root" method.  All of these derive
+from Kahan's original proposed solvers.
+
+   https://csclub.uwaterloo.ca/~pbarfuss/qbrt.pdf
+
+(Link is dead, but hopefully will come back up someday.)
