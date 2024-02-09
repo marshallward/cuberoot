@@ -5,6 +5,8 @@ use, intrinsic :: iso_fortran_env, only : real64, real128
 
 use, intrinsic :: iso_c_binding, only : c_double
 
+use, intrinsic :: ieee_arithmetic, only : ieee_fma
+
 implicit none
 
 ! Hallberg proposes starting with (3/8)^(1/3) for Newton iteration.
@@ -562,8 +564,13 @@ elemental function cuberoot_final(a) result(r)
     ! We want to maximize the residual in x - r**3, so split r**2 = r2_l + r2_h
     ! to preserve the FMA residual if available.
     r2_h = r * r
-    r2_l = r * r - r2_h
 
+    ! r2_l = (r * r) - r2_h
+    ! Every compiler wants to substitute r*r with r2_h so r2_l needs an
+    ! explicit FMA operation.
+    r2_l = ieee_fma(r, r, -r2_h)
+
+    ! The rest of the FMAs complete without any trouble.
     r = r + q * (1./3.) * (-r * r2_l + (-r * r2_h + x))
 
     ! Author says r approximates x**(1/3) within 0.50002 ULP.
