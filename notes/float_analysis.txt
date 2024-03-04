@@ -27,7 +27,7 @@ Next, consider the term :math:`\lfloor \log_2 a \rfloor`, which tells you the
 power-of-two lower bound of :math:`a`.  For example, :math:`\lfloor \log_2 15.5
 \rfloor` is 3, since it is bounded by :math:`2^3` and :math:`2^4`.  The
 remaining bit of :math:`a` is the part which cannot be expressed as a power of
-two, and is the "fraction" with respect to this factor.
+two, and is the power-of-two "fraction" of :math:`a`.
 
 Using these two operators, we seek to define :math:`a` by a representative
 exponent and a fractional correction.  Begin with the following decomposition,
@@ -90,7 +90,7 @@ Bringing it all together, we can write any real number :math:`a` as
      &= 2^{\lfloor \log_2 a \rfloor}
       \left( 1 + \left( 2^{-\lfloor \log_2 a \rfloor} a - 1 \right) \right) \\
 
-which is the standard form of a modern floating point number.
+which forms the basis of any modern floating point number.
 
 This does not yet represent an actual floating point number.  For example, we
 must also consider the truncation of the fractional part as the exponent
@@ -101,17 +101,19 @@ of this form.
 Fixed point form
 ----------------
 
-Each floating point number can therefore be represented by three numbers:
+This representation shows how a floating point number can be represented by
+three numbers:
 
-* A *base* for the exponent, :math:`b`, which is almost universally set to two
-  in both computing hardware and theoretical analysis,
+* A *base* for the exponent, :math:`b`.  This is almost universally set to 2 in
+  modern systems.  But there is some limited decimal support in calculators or
+  some math libraries.
 
 * an *exponent*, :math:`e`, denoting the value for which :math:`2^e \leq |a|`.
   This is equal to :math:`\lfloor \log_2 |a| \rfloor`.
 
-* The *fraction*, :math:`f`, which
+* The *fraction*, :math:`f`, which denotes the relative
 
-Not only can the usual floating
+Not only can the usual floating ...
 
 First consider a number :math:`a` and its computational counterpart :math:`A`.
 
@@ -120,3 +122,65 @@ First consider a number :math:`a` and its computational counterpart :math:`A`.
    A \equiv b + \lfloor \log_2 a \rfloor + \text{frac}
 
 TODO...
+
+
+Integer estimation of numerical operators
+=========================================
+
+The following method represents a common technique for computing the first
+estimate of a numerical operation, such as square or cube roots.  The most
+well-known application is for the inverse square root. [ref]
+
+Consider evaluation of some root operation, :math:`x = a^{n}`.  Using the
+exponential form, :math:`x = 2^e (1 + f)`, the equation can be written as
+
+.. math::
+
+   x &= a^n \\
+   \log_2 x &= n \log_2 a \\
+   \log_2 \left(2^{e_x} (1 + f_x) \right)
+      &= n \log_2 \left(2^{e_a} (1 + f_a) \right) \\
+   e_x + \log_2 (1 + f_x) &= n e_a + n \log_2 (1 + f_a) \\
+
+Now consider the approximation :math:`\log_2 (1 + x) \approx x + \sigma` for
+some parameter :math:`\sigma`.  To choose an appropriate :math:`\sigma` is
+not simple, and is often circumstantial, but we defer this step for now.
+
+Applying this approximation, the equation becomes
+
+.. math::
+
+   e_x + f_x + \sigma = n \left( e_a + f_a + \sigma \right).
+
+.. note::
+
+   (I am still trying to decide whether to use integer or fixed-point form for
+   the next section.)
+
+Next, rewrite each term using elements of the floating point form.
+Specifically, a number :math:`2^e (1 + f)` is integer-packed as `E L + F`, so
+that
+
+.. math::
+
+   e &= E - B \\
+   f &= F / L \\
+
+where :math:`B` is the exponent bias (127 in single precision and 1023 in
+double precision) and :math:`L = 2^b` and :math:`b` is the fractional bitcount
+(23 in single precision and 52 in double precision).
+
+After these substitutions, the equation becomes
+
+.. math::
+
+   E_x L + F_x  = (1 - n) (B - \sigma) L + n \left( E_a L + F_a \right)
+
+Or in integer form,
+
+.. math::
+
+   I_x = (1 - n) (B - \sigma) L + n I_a.
+
+To use the fixed-point syntax of the previous section, set :math:`L` to 1 so
+that :math:`X = (1 - n) (B - \sigma) + n A`

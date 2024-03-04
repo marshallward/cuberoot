@@ -2,9 +2,7 @@ module cubes
 
 use, intrinsic :: iso_fortran_env, only : int64
 use, intrinsic :: iso_fortran_env, only : real64, real128
-
 use, intrinsic :: iso_c_binding, only : c_double
-
 use, intrinsic :: ieee_arithmetic, only : ieee_fma
 
 implicit none
@@ -547,6 +545,8 @@ elemental function cuberoot_final(a) result(r)
     ! Repeat, with an altered coefficient (?)
     xqq = (x * q) * q
     q = q + 0.33523333333 * (xqq * (-xqq) + q)
+    ! @wim says this would probably be just as good
+    !q = q + 0.33523 * (xqq * (-xqq) + q)
 
     ! Repeat
     xqq = (x * q) * q
