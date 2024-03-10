@@ -2,9 +2,6 @@
 Floating point Algebra
 ======================
 
-(This is just me working through Robin Leroy's essay from the Principia
-library.  Nothing innovative here from me...)
-
 
 Base Exponential form
 =====================
@@ -98,11 +95,11 @@ increases.  But all floating point numbers can be represented by an expression
 of this form.
 
 
-Fixed point form
-----------------
+Integer and fixed-point forms
+-----------------------------
 
 This representation shows how a floating point number can be represented by
-three numbers:
+four numbers:
 
 * A *base* for the exponent, :math:`b`.  This is almost universally set to 2 in
   modern systems.  But there is some limited decimal support in calculators or
@@ -113,7 +110,13 @@ three numbers:
 
 * The *fraction*, :math:`f`, which denotes the relative
 
-Not only can the usual floating ...
+* The *sign*, :math:`s`, is tracked independently.  This primarily allows one
+  to avoid evaluation of negative logarithms.  A value of 0 denotes a positive
+  number and 1 denotes a negative number.
+
+  One can algebraically write :math:`s = 0.5 (1 - a/|a|)`, but zero is also
+  considered a signed value and can require special handling.  In most
+  discussions, the sign is omitted and computed separately.
 
 First consider a number :math:`a` and its computational counterpart :math:`A`.
 
@@ -124,12 +127,14 @@ First consider a number :math:`a` and its computational counterpart :math:`A`.
 TODO...
 
 
-Integer estimation of numerical operators
-=========================================
+Numerical estimation using integer form
+=======================================
 
-The following method represents a common technique for computing the first
-estimate of a numerical operation, such as square or cube roots.  The most
-well-known application is for the inverse square root. [ref]
+The following method is a common technique for computing a first estimate of a
+numerical operation, such as a square or cube root.  It can typically produce a
+result that is accurate within 5% or less, but also requires a new coefficient
+whose value must sometimes be determined empirically.  The most well-known
+application is for the inverse square root. [ref]
 
 Consider evaluation of some root operation, :math:`x = a^{n}`.  Using the
 exponential form, :math:`x = 2^e (1 + f)`, the equation can be written as
